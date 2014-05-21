@@ -1,0 +1,25 @@
+Extrapolation test case
+
+Testing whether the fit is accurate:
+	preparing data...
+	extrapolating...
+	calculating exact result...
+
+The extrapolated value (from [0;10] to 42) is 
+(40.7151,-0.809614)
+(1,0)
+(5183.73,-78.1075)
+(2239.73,15.5866)
+(1858.33,-10.7323)
+
+The exact value is 
+(40.7151,-0.809614)
+(1,0)
+(5183.73,-78.1075)
+(2239.73,15.5866)
+(1858.33,-10.7323)
+
+The extrapolation error is 1.67827e-08
+
+Done.
+

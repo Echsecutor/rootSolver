@@ -1,0 +1,157 @@
+TEST: Seeding RNG with seed=42
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Changed point to 
+(0,0)
+(0,0)
+(0,0)
+with f=
+(0.016824,0.0283702)
+(-0.0817628,-0.283907)
+(0.916874,0.266395)
+i.e. ||f|| = 1
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Newtons method proposed new point 
+(0.268988,0.128904)
+(-0.503201,-0.880525)
+(0.607949,0.379823)
+with f(z)=
+(-1.49182,0.954997)
+(-0.0242676,-0.0649328)
+(-1.75537,0.566245)
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : back tracking
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : epsZ was increased to 0.000623659 in order to prevent to deep recursion.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : step size 1.27725 leads to absF improvement: -1.55818
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : back tracking
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : step size 0.638626 leads to absF improvement: 0.120632
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Back tracking successfull.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : returning 2
+TEST: After 1 iterations the solver achieved |f| = 0.879368
+
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Newtons method proposed new point 
+(0.331938,0.148194)
+(-0.333251,0.167529)
+(0.16658,0.181181)
+with f(z)=
+(-0.0448276,0.00922773)
+(-0.0124745,-0.0383197)
+(0.944404,1.05553)
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : back tracking
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : epsZ was increased to 0.000324267 in order to prevent to deep recursion.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : step size 0.664099 leads to absF improvement: -0.538292
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : back tracking
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : step size 0.33205 leads to absF improvement: 0.373658
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Back tracking successfull.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : returning 2
+TEST: After 2 iterations the solver achieved |f| = 0.50571
+
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Newtons method proposed new point 
+(0.380497,0.164431)
+(-0.442553,-0.225797)
+(0.101485,0.121211)
+with f(z)=
+(0.00348663,0.00429183)
+(-0.00569297,-0.0228708)
+(-0.00387764,-0.243393)
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : back tracking
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : epsZ was increased to 0.000136057 in order to prevent to deep recursion.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : step size 0.278646 leads to absF improvement: 0.261086
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Back tracking successfull.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : returning 2
+TEST: After 3 iterations the solver achieved |f| = 0.244624
+
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Newtons method proposed new point 
+(0.453998,0.205557)
+(-0.415837,-0.185749)
+(0.102226,0.129802)
+with f(z)=
+(-0.000400761,-0.000145198)
+(0.000156548,-0.00693298)
+(0.0257888,-0.0134333)
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : back tracking
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : epsZ was increased to 4.75557e-05 in order to prevent to deep recursion.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : step size 0.0973941 leads to absF improvement: 0.214728
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Back tracking successfull.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : returning 2
+TEST: After 4 iterations the solver achieved |f| = 0.0298963
+
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Newtons method proposed new point 
+(0.478934,0.254374)
+(-0.420079,-0.181105)
+(0.101899,0.129277)
+with f(z)=
+(2.08485e-05,9.98015e-06)
+(0.00267134,-0.00146875)
+(-0.000198013,0.000414392)
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : back tracking
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : epsZ was increased to 2.69436e-05 in order to prevent to deep recursion.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : step size 0.0551805 leads to absF improvement: 0.0268133
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Back tracking successfull.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : returning 2
+TEST: After 5 iterations the solver achieved |f| = 0.00308298
+
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Newtons method proposed new point 
+(0.453223,0.255352)
+(-0.420069,-0.181201)
+(0.101912,0.129304)
+with f(z)=
+(4.87147e-07,-2.67618e-07)
+(-0.000691435,-0.000232341)
+(8.15872e-08,7.30839e-08)
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : back tracking
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : epsZ was increased to 1.2563e-05 in order to prevent to deep recursion.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : step size 0.025729 leads to absF improvement: 0.00235355
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Back tracking successfull.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : returning 2
+TEST: After 6 iterations the solver achieved |f| = 0.000729428
+
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Newtons method proposed new point 
+(0.457118,0.257608)
+(-0.420069,-0.181201)
+(0.101912,0.129304)
+with f(z)=
+(-1.45471e-09,1.9307e-09)
+(-1.71943e-06,-2.24698e-05)
+(-3.56422e-15,8.11129e-15)
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : back tracking
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : epsZ was increased to 2.19784e-06 in order to prevent to deep recursion.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : step size 0.00450118 leads to absF improvement: 0.000706892
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Back tracking successfull.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : returning 2
+TEST: After 7 iterations the solver achieved |f| = 2.25355e-05
+
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Newtons method proposed new point 
+(0.457093,0.257748)
+(-0.420069,-0.181201)
+(0.101912,0.129304)
+with f(z)=
+(3.27444e-13,-3.79515e-14)
+(1.57036e-08,1.62458e-08)
+(2.05212e-16,-7.02042e-17)
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : back tracking
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : epsZ was increased to 6.94691e-08 in order to prevent to deep recursion.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : step size 0.000142273 leads to absF improvement: 2.25129e-05
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Back tracking successfull.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : returning 2
+TEST: After 8 iterations the solver achieved |f| = 2.25949e-08
+
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Newtons method proposed new point 
+(0.457093,0.257748)
+(-0.420069,-0.181201)
+(0.101912,0.129304)
+with f(z)=
+(0,0)
+(1.89536e-14,-1.2394e-14)
+(3.2402e-17,-6.21038e-17)
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : back tracking
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : step size 1.42428e-07 leads to absF improvement: 2.25949e-08
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : Back tracking successfull.
+/files/home/part1/ses/Natty/research/multiRootSolver/src/multiRootSolver.hpp : returning 0
+TEST: After 9 iterations the solver achieved |f| = 2.26463e-14
+
+TEST: The solver found an approximate root f(z) =
+(0,0)
+(1.89536e-14,-1.2394e-14)
+(3.2402e-17,-6.21038e-17) 
+at z =
+(0.457093,0.257748)
+(-0.420069,-0.181201)
+(0.101912,0.129304)
+TEST: The solver used 12 function calls and computed the jacobian 9 times.
