@@ -5,7 +5,11 @@ This is a solver (frame work) for solving (complex) one or multi dimensional (no
 
 Internally, [eigen](http://eigen.tuxfamily.org) is used to solve the linear equations.
 
-## Version
+### License
+
+This code is released under GPLv3. See LICENSE.
+
+### Version
 
 1.0.2014-05-15
 
@@ -30,7 +34,7 @@ Batch and extrapolation solver can be combined to give the most powerful solver 
 See the test cases for examples.
 
 
-## ToDo
+### ToDo
 
 Before I will call a release a "beta", I want to do (at least) the following
 
