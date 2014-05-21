@@ -7,7 +7,7 @@ Internally, [eigen](http://eigen.tuxfamily.org) is used to solve the linear equa
 
 ### License
 
-This code is released under GPLv3. See LICENSE.
+This code is released under GPLv3, see LICENSE. Let me know if this doesn't work for you.
 
 ### Version
 
