@@ -19,6 +19,8 @@ The Version number is formatted as "M.S.D" where M is the major release branch (
 ## How-To
 
 To make use of this library you will need to include the appropriate *Solver.hpp file into your projetc. These files contain a description of how to run the respective solver. Generically you will need to derive the apropriate *functions class (interface) to implement your function, instanciate the solver passing your function, set a starting poin, and then run it like `while(Solver.step(epsilon) == CONTINUE)`.
+See the test cases (all .cpp files) for examples.
+
 
 ## Solver traits
 
@@ -31,7 +33,6 @@ batchSolver.hpp | Wrapper to solve a set of equations, i.e. computing implicit f
 
 Batch and extrapolation solver can be combined to give the most powerful solver implemented so far.
 
-See the test cases for examples.
 
 
 ### ToDo
