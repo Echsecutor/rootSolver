@@ -19,6 +19,7 @@ To make use of this library you will need to include the appropriate *Solver.hpp
 ## Solver traits
 
 file|description
+---|---
 singleRootSolver.hpp | This is a simple implementation of Newtons method for one complex variable/equation using back traking.
 multiRootSolver.hpp | Complex multidimensional root finding via Newtons method.
 extrapolationSolver.hpp | Extends one of the elementary solvers to track the root of a function that changes continuously with an external parameter.
