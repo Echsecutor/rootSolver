@@ -7,7 +7,9 @@ Internally, [eigen](http://eigen.tuxfamily.org) is used to solve the linear equa
 
 ### License
 
-This code is released under GPLv3, see LICENSE. Let me know if this doesn't work for you.
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version, see LICENSE.
+
+Let me know if this license doesn't work for you.
 
 ### Version
 
