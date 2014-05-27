@@ -163,6 +163,8 @@ template <typename T,  int dim>
   void backTrack(Matrix<T, dim, 1> farPoint, Matrix<T, dim, 1> farValue);
 
 
+  virtual void writeDatToStream(ostream &out);
+
  public:
 
   typedef MRS_functions<T,dim> functions_type;
@@ -205,6 +207,15 @@ template <typename T, int dim>
     re << real(this->z(i)) << "\t" <<imag(this->z(i));
   }
   return re.str();
+}
+
+
+template <typename T, int dim>
+void multiRootSolver<T,dim>::writeDatToStream(ostream &out){
+  for (int i=0;i<dim;i++){
+    if(i>0){out << "\t";}
+    out << real(this->z(i)) << "\t" <<imag(this->z(i));
+  }
 }
 
 
