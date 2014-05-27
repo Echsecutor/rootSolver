@@ -200,7 +200,7 @@ int main(int args, char *arg[]){
   double bsbm = 1.0;
 
   double fromOmega = 1e-3;
-  double toOmega = 3;
+  double toOmega = 2;
   double DOmega = 1e-1;
 
   bool logStep=false;///< toggle wether omega points are equally spaced on a linear or a log scale

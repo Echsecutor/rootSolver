@@ -46,8 +46,12 @@ VPATH = $(SRCDIR):$(TESTDIR)
 
 #constructionSite: clean selfconsistencyEquations.out
 
-all: testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out selfconsistencyEquations.out
+all: folders testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out selfconsistencyEquations.out
 	@-mv *.dat $(TESTDIR) 2>/dev/null
+
+folders:
+	@-mkdir $(BINDIR)
+	@-mkdir $(TESTDIR)
 
 
 # Special case: also test the single threaded version.
