@@ -90,6 +90,9 @@ protected:
   //user provides actual function:
   functions<valueT,derivativeT> * calc;
 
+  /// for implementing the "virtual friend <<"
+  virtual void writeDatToStream(ostream &out)=0;
+
 public:
   typedef valueT value_type;
   typedef derivativeT  derivative_type;
@@ -111,6 +114,12 @@ public:
   double getAbsF(){return absF;}
 
   virtual string getLastPointInDatFormat()=0;///< shall return "real(z[0])\timag(z[0])\treal(z[1])\t...\timag(z[n])"
+
+  /// same as getLastPointInDatFormat but respects stream formatting etc.
+  friend ostream& operator<< (ostream &out, rootSolver &rs){
+    rs.writeDatToStream(out);
+    return out;
+  }
 
   /// Setting a new starting point will reset the solver
   virtual void setStartPoint(valueT z_)=0;

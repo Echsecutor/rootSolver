@@ -21,7 +21,7 @@
 
 export SHELL = /bin/sh
 .SUFFIXES:
-.SUFFIXES: .cpp .o
+.SUFFIXES: .cpp .o .out
 
 MAKEFLAGS+= -w -e
 
@@ -29,21 +29,24 @@ export ROOTDIR := $(shell pwd)
 
 export BINDIR = $(ROOTDIR)/bin
 export SRCDIR = $(ROOTDIR)/src
-export TESTDIR = $(ROOTDIR)/test
+export TESTDIR = $(ROOTDIR)/test-out
+export TESTCASES = $(ROOTDIR)/test-in
+
 
 export CC = g++
 
 # notice that "eigen3/..." need to be included
-export CFLAGS = -Wall -Werror -Wfatal-errors -ansi -pedantic -std=c++0x -pthread
+export CFLAGS = -Wall -Werror -ansi -pedantic -std=c++0x -pthread -Wfatal-errors
 
 export LDFLAGS =
 
+export PREFLAGS = -D MULTITHREADED=0 -D DEBUG=11
 
 VPATH = $(SRCDIR):$(TESTDIR)
 
-#constructionSite: clean testExtraBatchSolver.out
+#constructionSite: clean selfconsistencyEquations.out
 
-all: testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out
+all: testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out selfconsistencyEquations.out
 	@-mv *.dat $(TESTDIR) 2>/dev/null
 
 
@@ -52,17 +55,17 @@ $(BINDIR)/testBatch: testBatchSolver.cpp
 	@echo
 	@echo "[...]		Building single threaded $^"
 	@echo
-	$(CC) -D MULTITHREADED=0 $(CFLAGS) -o $@-single $^ $(LDFLAGS)
+	$(CC) -D MULTITHREADED=0 -D DEBUG=11 $(CFLAGS) -o $@-single $^ $(LDFLAGS)
 	@echo
 	@echo "[...]		Test run for singled threaded batch solver"
 	@echo
-	$@-single -o $(TESTDIR)/testBatch-single-data > $(TESTDIR)/testBatch-single.out
+	$@-single -o $(TESTDIR)/testBatch-single-data > $(TESTDIR)/testBatch-single.out 2>&1
 	@echo
 	@echo "[OK]		test did not crash ;)"
 	@echo
 	@echo "[...]		Building multi threaded $^"
 	@echo
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) -D MULTITHREADED=1 -D DEBUG=11 $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 
 
@@ -74,14 +77,24 @@ $(BINDIR)/%: %.cpp
 	@echo
 	@echo "[...]		Building $^"
 	@echo
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(PREFLAGS) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+
+selfconsistencyEquations.out: $(BINDIR)/selfconsistencyEquations
+	@echo
+	@echo "[...]		Test run of $^"
+	@echo
+	$^ $(TESTCASES)/dummySCE.conf > $(TESTDIR)/$@ 2>&1
+	@echo
+	@echo "[OK]		$^ test did not crash ;)"
+	@echo
 
 
 %.out: $(BINDIR)/%
 	@echo
 	@echo "[...]		Test run of $^"
 	@echo
-	$^ > $(TESTDIR)/$@
+	$^ > $(TESTDIR)/$@ 2>&1
 	@echo
 	@echo "[OK]		$^ test did not crash ;)"
 	@echo
@@ -90,6 +103,8 @@ $(BINDIR)/%: %.cpp
 clean:
 	@-rm -f $(BINDIR)/* $(TESTDIR)/* *~ $(SRCDIR)/*~ *.o *.dat 2>/dev/null
 
+
+# actually not used for test cases
 %.o : %.cpp
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(PREFLAGS) $(CFLAGS) -c -o $@ $<
 

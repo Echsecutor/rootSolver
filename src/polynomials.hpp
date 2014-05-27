@@ -30,11 +30,6 @@
 
 #include <ostream>
 
-#include "singleRootSolver.hpp"
-#include "multiRootSolver.hpp"
-#include "batchSolver.hpp"
-#include "extrapolationSolver.hpp"
-
 #include <complex>
 #include <iterator>
 #include <memory>
@@ -49,6 +44,12 @@ static complex<double> I(0.0,1.0);
 
 #include <eigen3/Eigen/Dense>
 using namespace Eigen;
+
+
+#include "singleRootSolver.hpp"
+#include "multiRootSolver.hpp"
+#include "batchSolver.hpp"
+#include "extrapolationSolver.hpp"
 
 
 

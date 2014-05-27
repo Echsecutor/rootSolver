@@ -58,6 +58,17 @@ using namespace std;
 #include "extrapolationData.hpp"
 
 
+/// if you want complex random shifts on top of the extrapolation, use something like
+/// #ifndef COMPLEX_I
+/// #define COMPLEX_I
+/// static complex<double> I(0.0,1.0);
+/// #endif
+/// BEFORE including this header
+
+#ifndef COMPLEX_I
+static double I(1.0);
+#endif
+
 //------------------------------------------------------------------------------------------
 // Declarations:
 //------------------------------------------------------------------------------------------
@@ -84,7 +95,7 @@ public:
     return 1.0;
   }
 
-// overwrite these if you want something more sophisticated. ;)
+  // overwrite these if you want something more sophisticated. ;)
   virtual double get_min_change(){
     return get_max_change() / pow(2,20);
   }
@@ -92,7 +103,6 @@ public:
   virtual double get_initial_change(){
     return get_min_change() * pow(2,10);
   }
-
 
 
 };
@@ -112,15 +122,21 @@ class extraSolver : public virtual rootSolverT{
 
 protected:
 
+  default_random_engine* gen;
+
   extra_functions<rootSolverT>* calc;
 
   double dP;
 
-  extrapolationData<typename rootSolverT::value_type, typename rootSolverT::numerical_type, rootSolverT::value_dimension> dat;
+  bool randomiseExtrapolation;
 
+  typedef extrapolationData<typename rootSolverT::value_type, typename rootSolverT::numerical_type, rootSolverT::value_dimension> data_type;
+
+  data_type dat;
 
   void speedUp(const double& steps);
-  bool slowDown();
+  bool slowDown(double factor=1.5);
+
 
 public:
 
@@ -131,10 +147,10 @@ public:
 
 
   //explicit call to rootSolver constructor needed?
-  extraSolver(functions_type * f_, unsigned int desiredNumberOfSteps=50, unsigned int usePoints_=8) : rootSolver<typename rootSolverT::value_type, typename rootSolverT::derivative_type>(f_), rootSolverT(f_), calc(f_),usePoints(usePoints_), desiredSteps(desiredNumberOfSteps){
+  extraSolver(functions_type * f_, bool randomise = true, int seed = 42, unsigned int desiredNumberOfSteps=50, unsigned int usePoints_=8) : rootSolver<typename rootSolverT::value_type, typename rootSolverT::derivative_type>(f_), rootSolverT(f_), gen(new default_random_engine (seed)), calc(f_), randomiseExtrapolation(randomise), usePoints(usePoints_), desiredSteps(desiredNumberOfSteps){
     dP = f_->get_initial_change();
   }
-  
+
 
   virtual solver_state step(double epsilonF, double epsilonZ);
   virtual solver_state step(double epsilonF){return rootSolverT::step(epsilonF);};//no clue why this is not automatic....
@@ -154,53 +170,69 @@ template <typename rootSolverT>
 solver_state extraSolver<rootSolverT>::step(double epsilonF,double epsilonZ){
 
 
+
   if(calc->get_extra_parameter()==calc->get_initial() || dat.size()==0){//should be equivalent
 #if DEBUG>=SPAM
-  cout << __FILE__ << " : Guessing start point." <<endl;
+    cout << __FILE__ << " : Guessing start point." <<endl;
 #endif
     rootSolverT::setStartPoint(calc->guessStartPoint());// for p_initial a good starting point should be known
   }else{
-#if DEBUG>=SPAM
-  cout << __FILE__ << " : Extrapolating start point." <<endl;
+
+    bool goodPoint=false;
+
+    while(!goodPoint){
+#if DEBUG>=DETAIL
+      cout << __FILE__ << " : Extrapolating start point." <<endl;
 #endif
-    rootSolverT::setStartPoint(dat.extrapolate(calc->get_extra_parameter()));
+      if(this->randomiseExtrapolation){
+        rootSolverT::setStartPoint(dat.extrapolate(calc->get_extra_parameter()) + dP*1e-2 * (dat.gaussBlob(gen)+ I*dat.gaussBlob(gen)) );
+      }else{
+        rootSolverT::setStartPoint(dat.extrapolate(calc->get_extra_parameter()));
+      }
+
+      if(rootSolverT::getAbsF() > 1e-2){ //todo:hardcoded...
+        //we are likely running to fast
+#if DEBUG>=DETAIL
+        cout << __FILE__ << " : Bad starting point. " <<endl;
+#endif
+        if(!slowDown(1.1)){
+          goodPoint=true;//at least give this one a try
+        }
+      }else{
+        goodPoint=true;
+      }
+    }
+
   }
+
+
 
 #if DEBUG>=DETAIL
   cout << __FILE__ << " : Start solving for parameter " << calc->get_extra_parameter() <<endl;
 #endif
 
-
-  if(dat.size() > 0 && rootSolverT::getAbsF() > min(0.1, 1.0e6 * epsilonF)){ //todo:hardcoded...
-    //we are likely running to fast
-#if DEBUG>=SPAM
-    cout << __FILE__ << " : Bad starting point. " <<endl;
-#endif
-    if(slowDown()){
-      return CONTINUE;
-    }//else at least give this one a try
-  }
-
   int step=1;
-  while (rootSolverT::step(epsilonF,epsilonZ) == MRS_CONTINUE){
+  while (rootSolverT::step(epsilonF,epsilonZ) == CONTINUE){
 #if DEBUG>=SPAM
     cout << __FILE__ << " : after " << step << " steps, the solver achieved |f| = " << rootSolverT::getAbsF() <<endl;
 #endif
     step++;
   }
 
-  if (rootSolverT::getState()==MRS_SUCCESS){
+  if (rootSolverT::getState()==SUCCESS){
 #if DEBUG>=DETAIL
-    cout << __FILE__ << " : The solver found an approximate root for parameter " << calc->get_extra_parameter() <<endl;
+    cout << __FILE__ << " : The solver found an approximate root for parameter " << calc->get_extra_parameter() << " at " << rootSolverT::getLastPoint() << " with |f|= " << rootSolverT::getAbsF() << endl;
 #endif
 
-    if (calc->get_extra_parameter() == calc->get_final())
-      return SUCCESS;
+    if (calc->get_extra_parameter() == calc->get_final()){
+      this->state=SUCCESS;
+      return this->state;
+    }
 
     dat.push_back(rootSolverT::getLastPoint(), calc->get_extra_parameter());
 
 #if DEBUG>=DETAIL
-    cout << __FILE__ << " : Saving root for extrapolation. "  << "Now we have "<< dat.size() << " in store." << endl;
+    cout << __FILE__ << " : Saving root for extrapolation. Now we have "<< dat.size() << " in store." << endl;
 #endif
 
     speedUp(step);
@@ -220,12 +252,14 @@ solver_state extraSolver<rootSolverT>::step(double epsilonF,double epsilonZ){
 #if DEBUG>=WARN
       cout << __FILE__ << " : Step size to small. Extrapolation got stuck."<<endl;
 #endif
-      return STUCK;
+      this->state=STUCK;
+      return this->state;
     }
 
   }
 
-  return CONTINUE;
+  this->state=CONTINUE;
+  return this->state;
 
 }
 
@@ -251,8 +285,10 @@ void extraSolver<rootSolverT>::speedUp(const double& steps){
 }
 
 template <typename rootSolverT>
-bool extraSolver<rootSolverT>::slowDown(){
-  dP /= 2.0;
+bool extraSolver<rootSolverT>::slowDown(double factor){
+  double oldDp=dP;
+
+  dP /= factor;
 #if DEBUG>=SPAM
   cout << __FILE__ << " : Slowdown to dP = " << dP << " ( minDP = " << calc->get_min_change() << " )" << endl;
 #endif
@@ -262,7 +298,8 @@ bool extraSolver<rootSolverT>::slowDown(){
 #endif
     return false;
   }
-  calc->set_extra_parameter(calc->get_extra_parameter() - dP);
+
+  calc->set_extra_parameter(calc->get_extra_parameter() - oldDp + dP);
 
   return true;
 }

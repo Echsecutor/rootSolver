@@ -20,7 +20,7 @@
  *
  */
 
-#define DEBUG 9
+#include "preProDebugFlags.h"
 
 #include <iostream>
 #include <vector>

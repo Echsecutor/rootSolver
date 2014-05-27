@@ -138,7 +138,7 @@ int main(int args, char *arg[]){
 
   typedef batchSolver<multiRootSolver<complex<double>,dim>, PSI<dim>> batchMRS;
 
-  batchMRS::run(nThreads, F, it, end, outFileName + "-MRS", epsilon);
+  batchMRS::run(nThreads, F, it, end, outFileName + "-MRS", "#Solutions of some random multi-dimensional polynomial equations\n", epsilon);
 
   cout << "Finished."<<endl<<endl;
 
@@ -155,7 +155,7 @@ int main(int args, char *arg[]){
 
   typedef batchSolver<singleRootSolver<complex<double>>, PSI<1>> batchSRS;
 
-  batchSRS::run(nThreads, FOne, itOne, endOne, outFileName + "-SRS", epsilon);
+  batchSRS::run(nThreads, FOne, itOne, endOne, outFileName + "-SRS","#Solutions of some random polynomial equation\n", epsilon);
 
 
 

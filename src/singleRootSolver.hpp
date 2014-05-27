@@ -38,7 +38,7 @@ using namespace std;
 
 template <typename T>
 class SRS_functions : public virtual functions<T,T >{
- public:
+public:
   virtual T guessStartPoint(){return 0.0;}
 };
 
@@ -62,14 +62,16 @@ class SRS_functions : public virtual functions<T,T >{
  */
 template <typename T>
 class singleRootSolver : public virtual rootSolver<T,T >{
- protected:
+protected:
 
   double epsZ;
   double epsF;
 
   void update();
 
- public:
+  virtual void writeDatToStream(ostream &out);
+
+public:
 
   typedef SRS_functions<T> functions_type;
   typedef T numerical_type;
@@ -92,26 +94,30 @@ class singleRootSolver : public virtual rootSolver<T,T >{
 
   string getLastPointInDatFormat();
 
-  };
+};
 
 
 //---------------------------------------------------------------------------
 
 template <typename T>
-  string singleRootSolver<T>::getLastPointInDatFormat(){
+string singleRootSolver<T>::getLastPointInDatFormat(){
   stringstream re;
   re << real((this->z)) << "\t" << imag((this->z));
   return re.str();
 }
 
+template <typename T>
+void singleRootSolver<T>::writeDatToStream(ostream &out){
+  out << real(this->z) << "\t" << imag(this->z);
+}
 
 template <typename T>
-  void singleRootSolver<T>::update(){
+void singleRootSolver<T>::update(){
   this->calc->changePoint(this->z);
   this->f = this->calc->calcF();
   this->absF = abs((this->f));
-#if DEBUG >= DETAIL
-  cout << "SRS: Changed point to z="<< (this->z) <<"\nwith f="<< (this->f) <<"\ni.e. |f| = "<< this->absF <<endl;
+#if DEBUG >= SPAM
+  cout << __FILE__ << " : Changed point to "<< (this->z) <<"\nwith f="<< (this->f) <<"\ni.e. |f| = "<< this->absF <<endl;
 #endif
 }
 
@@ -125,34 +131,34 @@ void singleRootSolver<T>::setStartPoint(T z_){
 
 /// tries to guess a good step size
 template <typename T>
-  solver_state singleRootSolver<T>::step(double epsilonF){
-  double epsilonZ = epsilonF / 8.0;
+solver_state singleRootSolver<T>::step(double epsilonF){
+  double epsilonZ = epsilonF *1e-2;
   return step(epsilonF,epsilonZ);
 }
 
 
 
 template <typename T>
-  solver_state singleRootSolver<T>::step(double epsF_,double epsZ_){
+solver_state singleRootSolver<T>::step(double epsF_,double epsZ_){
   epsF=epsF_;
   epsZ=epsZ_;
 
   if(this->absF < epsF){
     this->state=SUCCESS;
 #if DEBUG >= DETAIL
-  cout << "SRS: Current (start?) point is a root."<<endl;
+    cout << __FILE__ << " : Current (start?) point is a root."<<endl;
 #endif
-  return this->state;
+    return this->state;
   }else if(this->state == SUCCESS){//likely the user changed epsF on the fly
     this->state=CONTINUE;
 #if DEBUG >= DETAIL
-  cout << "SRS: |f| to large, solver will continue."<<endl;
+    cout << __FILE__ << " : |f| to large, solver will continue."<<endl;
 #endif
   }
 
   if(this->state < INIT){
 #if DEBUG >= WARN
-    cout << "SRS: step() was called although the solver is not in a usable state. I won't do aything."<<endl;
+    cout << __FILE__ << " : step() was called although the solver is not in a usable state. I won't do aything."<<endl;
 #endif
     return this->state;
   }
@@ -181,18 +187,27 @@ template <typename T>
     newAbsF = abs(newF);
 
 #if DEBUG >= SPAM
-  cout << "SRS: Backtracking at z="<< newZ <<"\nwith f="<< newF <<"\ni.e. |f| = "<< newAbsF <<endl;
+    cout << __FILE__ << " : Backtracking at "<< newZ <<"\nwith f="<< newF <<"\ni.e. |f| = "<< newAbsF <<endl;
 #endif
 
-    if(stepSize<epsZ){
+    if(newAbsF < epsF){
+      this->f = newF;
+      this->z = newZ;
+      this->absF = newAbsF;
+      this->state=SUCCESS;
+      return this->state;
+    }
+
+
+    if(stepSize < epsZ){
       if(newAbsF < this->absF){
-	this->f = newF;
-	this->z = newZ;
-	this->absF = newAbsF;
+        this->f = newF;
+        this->z = newZ;
+        this->absF = newAbsF;
       }
       this->state = STUCK;
 #if DEBUG >= SPAM
-  cout << "SRS: Got stuck because stepSize="<< stepSize <<endl;
+      cout << __FILE__ << " : Got stuck because stepSize="<< stepSize <<endl;
 #endif
       return this->state;
     }else{
@@ -206,22 +221,21 @@ template <typename T>
   if( this->absF - newAbsF < epsF){
     this->state=STUCK;
 #if DEBUG >= SPAM
-  cout << "SRS: Got stuck because absolute value change = "<<  this->absF - newAbsF <<endl;
+    cout << __FILE__ << " : Got stuck because absolute value change = "<<  this->absF - newAbsF <<endl;
 #endif
   }
   this->absF=newAbsF;
 
-  if(this->absF<epsF){
+  if(this->absF < epsF){
     this->state=SUCCESS;
   }
 
 #if DEBUG >= DETAIL
-  cout << "SRS: Changed point to z="<< (this->z) <<"\nwith f="<< (this->f) <<"\ni.e. |f| = "<< this->absF <<endl;
+  cout << __FILE__ << " : Changed point to "<< (this->z) <<"\nwith f="<< (this->f) <<"\ni.e. |f| = "<< this->absF <<endl;
 #endif
 
-
   return this->state;
-  
+
 }
 
 

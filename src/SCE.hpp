@@ -1,7 +1,7 @@
 /**
  * @file SCE.hpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0.2014-05-22
+ * @version 1.0.2014-05-26
  *
  * @section DESCRIPTION
  *
@@ -9,7 +9,7 @@
  * disordered bosons at the Institute for Theoretical Physics,
  * University of Cologne, in the group of Prof. M. R. Zirnbauer.
  *
- * We need to solve one complex equation 
+ * We need to solve one complex equation
  * \f[
  * 1 = \int_{[0;2 \pi]^d} \frac{d^d k}{(2\pi)^d} \frac{B_S}{-(\delta B_S) B_S \Delta_k + g z + b_s \delta B_S(1-d)}
  * \f]
@@ -44,13 +44,9 @@
 
 #include <ostream>
 
-#include "singleRootSolver.hpp"
-#include "batchSolver.hpp"
-#include "extrapolationSolver.hpp"
-
 #include <complex>
-#include <iterator>
-#include <memory>
+#include<cmath>//M_PI
+#include <list>
 using namespace std;
 
 
@@ -60,392 +56,299 @@ static complex<double> I(0.0,1.0);
 #endif
 
 
+#include "singleRootSolver.hpp"
+#include "batchSolver.hpp"
+#include "extrapolationSolver.hpp"
+
+
+
+
+
+//------------------------------------------------------------------------------------------
+// Declarations:
+//------------------------------------------------------------------------------------------
+class SCE_parameters;
+
+typedef extraSolver<singleRootSolver<complex<double> > > eSRS;
+typedef batchSolver<eSRS, list<SCE_parameters>::iterator> beSRS;
+
 
 class SCE_parameters{
 public:
 
   double dim;
   double bs, bm, cutOff;
-  complex<double> z;
+  complex<double> z,g;
+
+  SCE_parameters():dim(0),bs(0),bm(0),cutOff(0),z(0.0),g(0.0){}
+  SCE_parameters(double dim_,complex<double> z_):dim(dim_),bs(0),bm(0),cutOff(0),z(z_),g(0.0){}
+
+  SCE_parameters(const SCE_parameters& p2):dim(p2.dim),bs(p2.bs),bm(p2.bm),cutOff(p2.cutOff),z(p2.z),g(p2.g){}
+
 
   friend ostream& operator<< (ostream &out, SCE_parameters &p){
-    out << p.dim << "\t" << p.bs << "\t" << p.bm << "\t" << real(z) << "\t" << imag(z);
+    out << p.dim << "\t" << p.bs << "\t" << p.bm << "\t" << real(p.z) << "\t" << imag(p.z) << "\t" << real(p.g) << "\t" << imag(p.g);//cutOff is computed from dim, irrelevant
     return out;
   }
 
-  
+  static string getFormat(){
+    return string("dim\tbs\tbm\treal(z)\timag(z)\treal(g)\timag(g)");
+  }
+
+  bool operator==(const SCE_parameters& rhs) {
+    bool re = true;
+    re = re && this->dim == rhs.dim;
+    re = re && this->bs == rhs.bs;
+    re = re && this->bm == rhs.bm;
+    re = re && this->cutOff == rhs.cutOff;
+    re = re && this->z == rhs.z;
+    re = re && this->g == rhs.g;
+    return re;
+  }
+
+};
+
+
+//-----------------------------------------------------------------------------------
+
+
+class SCE : public virtual batch_functions<eSRS,  list<SCE_parameters>::iterator > {
+private:
+
+  //parameters:
+  SCE_parameters* p;
+  double n;///< dim = 2 n +1
+
+  double bs_bm;///< fixed ratio \f$ \frac{b_s}{b_m} \f$
+  double target_bm, max_change, min_change, initial_change;
+
+  //temporaries read at changePoint:
+  complex<double> BS,dBS,BM,dBM,a,b,Int;
+
+
+  void computeInt();
+
+  complex<double> arctanOverX(complex<double> x);
+
+public:
+
+  SCE(double bs_over_bm, double final_bm, double max_d_bm, double min_d_bm, double ini_d_bm):p(0), bs_bm(bs_over_bm),target_bm(final_bm),max_change(max_d_bm),min_change(min_d_bm),initial_change(ini_d_bm){}
+
+
+  //Overrides from
+  //batch:
+  virtual void setParameters(SCE::iterator It);
+
+  //extra:
+  virtual double get_extra_parameter();
+  virtual void set_extra_parameter(double p);
+
+  virtual double get_initial();
+  virtual double get_final();
+
+  virtual double get_max_change();
+
+  virtual double get_min_change();
+  virtual double get_initial_change();
+
+
+  //solver:
+  virtual value_type calcF();
+  virtual derivative_type calcJ();
+  virtual void changePoint(const value_type x);
+  virtual value_type guessStartPoint();
+
 };
 
 
 
 
-template <int dim>
-class polynomials : public virtual MRS_functions<complex<double>,dim>{
-protected:
+//------------------------------------------------------------------------------------------
+// Implementations:
+//------------------------------------------------------------------------------------------
 
-  int functionCalls;
-  int jacobianCalls;
+/// the cut off is \f$ \Omega^{2n+1} = (2n+1) \pi^{n+1}\frac{2n!}{n!} \f$ for \f$ d = 2n+1 \f$
+void SCE::setParameters(SCE::iterator It){
+  p = &(*It);
 
-  // using a pointer instead of aligning this whole class with  EIGEN_MAKE_ALIGNED_OPERATOR_NEW_IF(NeedsToAlign)
-  shared_ptr<Matrix<complex<double>, dim, 1>> x;
+  n = floor((p->dim -1.0)/2.0);
 
-  polyParams * para;
-
-  complex<double> p(complex<double> z, int nZeros, complex<double> * zeros){
-    complex<double> re=1.0;
-    for(int i=0;i<nZeros;i++){
-      re *= (z-zeros[i]);
-    }
-    return re;
+  //only odd d implemented yet!
+  if(2.0 * n + 1.0 != p->dim){
+    throw runtime_error(string(__FILE__) + string(" : Debeye approximation only implemented for odd dimensions."));
   }
 
-  complex<double> P(const Matrix<complex<double>,dim,1> z, int m,complex<double> *s,int ** degree, complex<double> *** zeros){
-    complex<double> re=0.0;
-
-    for(int i=0;i<m;i++){
-      complex<double> prod=s[i];
-      for(int k=0;k<dim;k++){
-        prod*=p(z(k),degree[i][k],zeros[i][k]);
-      }
-      re +=prod;
-    }
-    return re;
+  double fac = M_PI;
+  for(double f = n + 1.0; f <= 2.0 * n; f++){
+    fac *= f * M_PI;
   }
 
-  Matrix<complex<double>,dim,1> Poly(const Matrix<complex<double>,dim,1> z, polyParams * p){
-    Matrix<complex<double>,dim,1> re;
-    for(int j=0;j<dim;j++){
-      complex<double> Pj=P(z,p->m[j],p->s[j],p->degree[j],p->zeros[j]);
-      re(j)=Pj;
-    }
-    return re;
-  }
+  p->cutOff = pow( (2.0 * n + 1.0) * fac, 1.0 / (2.0 * n + 1.0) );
 
+#if DEBUG>=SPAM
+  cout << __FILE__<<" : cutOff = " << p->cutOff << " in dimension " << p->dim<<endl;
+#endif
 
-  // derivatives of the polynomial function:
-
-  complex<double> dp(complex<double> z, int nZeros, complex<double> * zeros){
-    complex<double> re=0.0;
-    for(int j=0;j<nZeros;j++){
-      complex<double> prod=1.0;
-      for(int i=0;i<nZeros;i++){
-        if(i!=j){
-          prod *= (z-zeros[i]);
-        }
-      }
-      re+=prod;
-    }
-
-    return re;
-  }
-
-  complex<double> dPdzj(int j,const Matrix<complex<double>,dim,1> z, int m,complex<double> *s,int ** degree, complex<double> *** zeros){
-    complex<double> re=0.0;
-
-    for(int i=0;i<m;i++){
-      complex<double> prod=s[i];
-      for(int k=0;k<dim;k++){
-        if(k==j){
-          prod*=dp(z(k),degree[i][k],zeros[i][k]);
-        }else{
-          prod*=p(z(k),degree[i][k],zeros[i][k]);
-        }
-      }
-      re +=prod;
-    }
-    return re;
-  }
-
-  Matrix<complex<double>,dim,dim> dPolyDz(const Matrix<complex<double>,dim,1> z, polyParams * p){
-    Matrix<complex<double>,dim,dim> re;
-    for(int j=0;j<dim;j++){
-      for(int i=0; i<dim; i++){
-        complex<double> Pj=dPdzj(i,z,p->m[j],p->s[j],p->degree[j],p->zeros[j]);
-        re(j,i)=Pj;
-      }
-    }
-    return re;
-  }
-
-  double absF0;
-
-public:
-
-  polynomials():functionCalls(0),jacobianCalls(0),x(new Matrix<complex<double>, dim, 1>()),para(new polyParams()),absF0(0){
-    para->maxDegree=dim*3;
-    randomiseTestcase();
 }
 
-  polynomials(polyParams * p_):functionCalls(0),jacobianCalls(0),x(new   Matrix<complex<double>, dim, 1>()),para(p_),absF0(0){}
 
-  polynomials(const polynomials& p2):functionCalls(p2.functionCalls),jacobianCalls(p2.jacobianCalls),x(p2.x),para(p2.para),absF0(p2.absF0){}
+double SCE::get_extra_parameter(){
+  return p->bm;
+}
+
+void SCE::set_extra_parameter(double b){
+  p->bm=b;
+  p->bs = bs_bm * b;
+}
+
+double SCE::get_initial(){
+  return 0.0;
+}
+
+double SCE::get_final(){
+  return target_bm;
+}
+
+double SCE::get_max_change(){
+  return max_change;
+}
+
+double SCE::get_min_change(){
+  return min_change;
+}
+
+double SCE::get_initial_change(){
+  return initial_change;
+}
 
 
-  polyParams * getParameters(){return para;}
-  void setParameters(polyParams * p){para=p;}
 
-  Matrix<complex<double>, dim, 1> calcF(){
-    if(absF0==0){absF0=Poly(*x,para).norm();}
-    functionCalls++;
-    return Poly(*x, para)/absF0;
-  }
+void SCE::computeInt(){
 
-  Matrix<complex<double>, dim, dim> calcJ(){
-    if(absF0==0){absF0=Poly(*x,para).norm();}
-    jacobianCalls++;
-    return dPolyDz(*x,para)/absF0;
-  }
+  Int=0.0;
 
-  void changePoint(Matrix<complex<double>, dim, 1> x_){
-    *x = x_;
-  }
+  if(p->dim==1.0){
+#if DEBUG >= SPAM
+    cout << __FILE__ << " : Using exact 1d integral"<<endl;
+#endif
+    complex<double> rt= sqrt(a*a - b*b);
 
-  int getFunctionCallsCounter(){return functionCalls;}
-  int getJacobianCallsCounter(){return jacobianCalls;}
-
-
-  /// generates random zeros and prefactors defining the polynomials
-  void randomiseTestcase(){
-    int maxPols=dim;
-    int maxDegree=para->maxDegree;
-
-    complex<double> d;//dummy
-    para->dim=dim;
-    para->m = new int[dim];
-    para->s= new complex<double>*[dim];
-    para->degree= new int **[dim];
-    para->zeros = new complex<double> ***[dim];
-
-    for(int j=0;j<dim;j++){
-      para->m[j]= (rand() % (maxPols))+1;
-      para->s[j]=new complex<double>[para->m[j]];
-      para->degree[j]=new int *[para->m[j]];
-      para->zeros[j] = new complex<double> **[para->m[j]];
-      for(int i=0;i<para->m[j];i++){
-        int totalDegreeLeft=maxDegree;
-        double x= ((double)rand()/(double)RAND_MAX);
-        d = x;
-        para->s[j][i]=d;
-        para->degree[j][i] = new int [dim];
-        para->zeros[j][i] = new complex<double> *[dim];
-        for(int k=0;k<dim;k++){
-          para->degree[j][i][k]=rand() % (totalDegreeLeft+1);
-          totalDegreeLeft -= para->degree[j][i][k];
-          para->zeros[j][i][k] = new complex<double>[para->degree[j][i][k]];
-          for(int n=0;n<para->degree[j][i][k];n++){
-            double x= 2.0*((double)rand()/(double)RAND_MAX)-1.0;
-            double y= 2.0*((double)rand()/(double)RAND_MAX)-1.0;
-            d= x + I * y;
-            para->zeros[j][i][k][n]=d;
-          }
-        }
-      }
+    Int = 1.0 / rt;
+    if(abs(a + rt) < abs(b)){//correct branch of sqrt
+      Int*=-1.0;
     }
-  }
+  }else{
 
-};
-
-
-
-/// wraps the above to a SRS_function.
-// Yeah I know, implementing it the other way around would have made more sense... clean it up if you wish. ;)
-class polynomial : public virtual SRS_functions<complex<double>>{
- protected:
-  polynomials<1> ps;
-
- public:
-
-  polynomial():ps(){}
-  polynomial(polyParams * p_):ps(p_){}
-
-  virtual complex<double>calcF(){
-    return ps.calcF()(0);
-  }
-
-  virtual complex<double> calcJ(){
-    return ps.calcJ()(0,0);
-  }
-
-  virtual void changePoint(const complex<double> x){
-    Matrix<complex<double>, 1, 1> z;
-    z << x;
-    ps.changePoint(z);
-  }
-
-  int getFunctionCallsCounter(){return ps.getFunctionCallsCounter();}
-  int getJacobianCallsCounter(){return ps.getJacobianCallsCounter();}
-
-  void randomiseTestcase(){
-    ps.randomiseTestcase();
-  }
-
-  polyParams * getParameters(){return ps.getParameters();}
+    // This implements the Debeye approximation of the integral in question. In d=1 we would have:
+    // \f[
+    //   Int  = \int_0^\Omega \frac{d k}{a+b k^2} = \frac{1}{a}\sqrt{\frac{a}{b}}\arctan\left(\sqrt{\frac{b}{a}}\Omega\right)
+    // \f]
+    // Using the same sqrt twice cancels sign ambiguities. See paper for details about higher d.
+#if DEBUG >= DETAIL
+    cout << __FILE__ << " : Using Debeye approximation for integrals in dimension " << p->dim <<endl;
+#endif
 
 
-
-};
-
-
-
-//---------------------------------------------------------------------------------------------
-// Batch polynomials:
-
-///parameterSetIterator
-
-template <int dim>
-class PSI : public iterator<std::input_iterator_tag, polyParams>{
-private:
-  shared_ptr<polynomials<dim>> p;
-public:
-  int counter;
-  PSI(polyParams* x):p(new polynomials<dim>(x)),counter(0){}
-  PSI(const PSI& p2):p(new polynomials<dim>(*(p2.p))),counter(p2.counter){}
-  PSI& operator++() {this->p->randomiseTestcase();this->counter++;return *this;}
-  PSI operator++(int) {PSI tmp(*this); operator++(); return tmp;}
-  bool operator==(const PSI& rhs) {return this->counter == rhs.counter;}
-  bool operator!=(const PSI& rhs) {return !operator==(rhs);}
-  polyParams& operator*() {return *(this->p->getParameters());}
-};
+    complex<double> rt= sqrt(b/a);
+    
+    Int += arctanOverX(rt * p->cutOff);
 
 
-
-template <int dim>
-class batch_polynomials :public virtual batch_functions<multiRootSolver<complex<double>,dim>, PSI<dim>>, public virtual polynomials<dim>{
- public:
-
-  batch_polynomials():polynomials<dim>(){}
-  batch_polynomials(polyParams * p_):polynomials<dim>(p_){}
-  batch_polynomials(const batch_polynomials& p2):polynomials<dim>(p2){}
-
-  virtual void setParameters(PSI<dim> It){
-    this->para = &(*It);
-  }
-};
-
-
-
-class batch_polynomial :public virtual batch_functions<singleRootSolver<complex<double>>, PSI<1>>, public virtual polynomial{
- public:
-
-  batch_polynomial():polynomial(){}
-  batch_polynomial(polyParams * p_):polynomial(p_){}
-  batch_polynomial(const batch_polynomial& p2):polynomial(p2){}
-
-  virtual void setParameters(PSI<1> It){
-    this->ps.setParameters(&(*It));
-  }
-};
-
-
-//---------------------------------------------------------------------------------------------
-// trivial polynomial shift to test extrapolation:
-
-class extra_polynomial : public virtual extra_functions<singleRootSolver<complex<double> > >, public virtual polynomial{//you can avoid diamonds if you are not using the same function for dozens of solvers or are less lazy ;)
-
-private:
-  double shift;
-
-public:
-
-  extra_polynomial():polynomial(),shift(0){}
-  extra_polynomial(polyParams * p):polynomial(p),shift(0){}
-  extra_polynomial(const extra_polynomial& p2):polynomial(p2), shift(0){}
-
-  virtual double get_extra_parameter(){return shift;}
-  virtual void set_extra_parameter(double p){shift = p;}
-
-  virtual double get_initial(){return 0;}
-  virtual double get_final(){return 1;}
-
-  virtual double get_max_change(){return 1.0/8.0;}
-
-
-  virtual void changePoint(complex<double> x){
-    int shiftOrder=4;
-    double c[] = {0.1,-1.0,1.0,-1.0,1.0};
-
-    //    polynomial::changePoint(x + shift);
-    complex<double>shifted = 0.0;
-    for(int i=0;i<=shiftOrder;i++){
-      shifted *=shift;
-      shifted+=c[i];
+    for(int k=0;k<n;k++){
+      Int -= pow(- b / a * p->cutOff * p->cutOff , k) / (2.0 * (double) k + 1.0);
     }
-    shifted += x;
-    polynomial::changePoint(shifted);
+
+    Int *= p->cutOff/a * pow(- a / b, (int)n);
+
   }
 
-};
+}
 
-template <int dim>
-class extra_polynomials : public virtual extra_functions<multiRootSolver<complex<double>,dim> >, public virtual polynomials<dim>{
 
-private:
-  double shift;
 
-public:
+void SCE::changePoint(const SCE::value_type x){
+  dBM = x;
+  BM = 1.0 + p->bm * dBM;
 
-  extra_polynomials():polynomials<dim>(),shift(0){}
-  extra_polynomials(polyParams * p):polynomials<dim>(p),shift(0){}
-  extra_polynomials(const extra_polynomial& p2):polynomials<dim>(p2), shift(0){}
+  p->g = BM * (dBM + 1.0) / p->z;
 
-  virtual double get_extra_parameter(){return shift;}
-  virtual void set_extra_parameter(double p){shift = p;}
+  dBS = - p->g * BM * (BM + p->bm) / (p->z + p->bs * p->g * BM * (BM + p->bm));
+  BS = 1.0 + p->bs * dBS;
 
-  virtual double get_initial(){return 0;}
-  virtual double get_final(){return 1;}
+  a = p->g * p->z + p->bs * dBS *(1.0 - p->dim);
+  b = - BS * dBS;
 
-  virtual double get_max_change(){return 1.0/8.0;}
+  computeInt();
 
-  virtual void changePoint(Matrix<complex<double>, dim,1> x){
-    int shiftOrder=4;
-    double c[] = {0.1,-1.0,1.0,-1.0,1.0};
+}
 
-    //    polynomial::changePoint(x + shift);
-    complex<double>shifted = 0.0;
-    for(int i=0;i<=shiftOrder;i++){
-      shifted *=shift;
-      shifted+=c[i];
+complex<double> SCE::arctanOverX(complex<double> x){
+  if (abs(x) < 0.001){
+    return 1.0 - x * x / 3.0;//at abs(x)=0.001 the relative error of this approximation is about 2e-13
+  }
+  return atan(x) / x;
+
+}
+
+/// The actual computation is done at changePoint
+SCE::value_type SCE::calcF(){
+  return BS * Int - 1.0;
+}
+
+
+
+SCE::derivative_type SCE::calcJ(){
+
+  complex<double> Dg = (1.0 + 2.0 * p->bm * dBM + p->bm) / p->z;
+
+  complex<double> DBM = p->bm;
+  complex<double> DdBS= BS * dBS * Dg / p->g  + dBS*(1.0 - p->bs * dBS / BM / (BM + p->bm)) * (2.0 * BM + p->bm) / BM / (BM + p->bm) * DBM;
+
+  complex<double> Da = p->z * Dg + p->bs * DdBS *(1.0 - p->dim);
+  complex<double> Db = - p->bs * dBS * DdBS - BS * DdBS;
+
+  complex<double> DInt=0.0;
+
+  if(p->dim == 1.0){
+
+    DInt = Int*Int*Int * (b * Db - a * Da);
+
+  }else{
+
+    complex<double> t = p->cutOff / a / (1.0 + b / a * p->cutOff*p->cutOff);
+    DInt += 0.5 * (t - Int) * (Db / b   - Da / a);
+
+
+    for(int k=1;k<n;k++){
+      DInt -= pow( (- b / a  * p->cutOff * p->cutOff ), k ) / (2.0 * (double)k + 1.0) * (double)k * ( Db / b - Da / a) ;
     }
-    for(int i=0; i<dim;i++){
-      x[i]+=shifted;
-    }
-    polynomials<dim>::changePoint(x);
+
+ 
+    DInt *= p->cutOff/a * pow(- a / b, (int)n);
+
+    DInt += Int *((n - 1.0) * Da / a - n * Db / b);
+
   }
 
-};
+  return Int * DdBS * p->bs + BS * DInt;
 
-//---------------------------------------------------------------------------------------------
-// combine shift and batch
-
-
-class batch_extra_polynomial : public virtual extra_polynomial, public virtual batch_functions<extraSolver<singleRootSolver<complex<double> > >, PSI<1> >
-{
- public:
-
-  batch_extra_polynomial():extra_polynomial(){}
-  batch_extra_polynomial(polyParams * p_):extra_polynomial(p_){}
-  batch_extra_polynomial(const batch_extra_polynomial& p2):extra_polynomial(p2){}
-
-  virtual void setParameters(PSI<1> It){
-    this->ps.setParameters(&(*It));
-  }
-
-};
+}
 
 
-template<int dim>
-  class batch_extra_polynomials :public virtual extra_polynomials<dim>, public virtual batch_functions<extraSolver<multiRootSolver<complex<double>,dim> >, PSI<dim> >{
- public:
+/// The deterministic limit is the well known harmonic crystal
+SCE::value_type SCE::guessStartPoint(){
 
-  batch_extra_polynomials():extra_polynomials<dim>(){}
-  batch_extra_polynomials(polyParams * p_):extra_polynomials<dim>(p_){}
-  batch_extra_polynomials(const batch_extra_polynomial& p2):extra_polynomials<dim>(p2){}
+  a = p->z*p->z;
+  b = 1.0;
 
-  virtual void setParameters(PSI<dim> It){
-    this->para = &(*It);
-  }
+  computeInt();
 
-};
+  p->g = Int * p->z;
+  dBM = p->g * p->z -1.0;
+
+  return dBM;
+}
+
 
 
 

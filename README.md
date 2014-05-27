@@ -37,11 +37,3 @@ Batch and extrapolation solver can be combined to give the most powerful solver 
 
 
 
-### ToDo
-
-Before I will call a release a "beta", I want to do (at least) the following
-
-* Actually test wether the results of test runs make sense. Currently test run through unless there are compile/runtime errors.
-* A steepest gradient descent method +dogleg step is partially implemented for the multiRootSolver. These should be completed and tested.
-* Whenever you see a shared_ptr I am usually working around [alignment issues with eigen](http://eigen.tuxfamily.org/dox/group__TopicUnalignedArrayAssert.html). In most cases, alignment will not give a large speed advantage. Hence get rid of unneccesary alignments by just usign the dynamic eigen classes, wherever appropriate.
-

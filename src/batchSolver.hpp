@@ -69,6 +69,9 @@ using namespace std;
 template <typename rootSolverT, class parameterSetIterator>
 class batch_functions : public virtual rootSolverT::functions_type{//be amazed how templates avoid inheritance diamonds here ;)
  public:
+
+  typedef parameterSetIterator iterator;
+
   virtual void setParameters(parameterSetIterator It)=0;
 };
 
@@ -102,11 +105,13 @@ private:
   batchSolver& operator=(const batchSolver&);
 
 
-  static int childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, double precisionGoal);
+  static int childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, double precisionGoal);
 
 public:
 
-  static void run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, double precisionGoal);
+  typedef parameterSetIterator iterator;
+
+  static void run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, string outFileHeader, double precisionGoal);
 
 };
 
@@ -118,7 +123,7 @@ public:
 //------------------------------------------------------------------------------------------
 
 template<typename rootSolverT, class parameterSetIterator>
-int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, double precisionGoal){
+int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, double precisionGoal){
 
   ofstream out;
 
@@ -127,50 +132,62 @@ int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<ro
   }
   catch (std::ios_base::failure &e) {
 #if DEBUG>=ERR
-    cerr << "ERR: CHILD: I could not open " << outFileName << " for writing." <<endl;
+    cerr << __FILE__ << " : I could not open " << outFileName << " for writing." <<endl;
 #endif
     throw e;
   }
+
+  out.precision(8);
+  out << std::scientific;
+
+  out << outFileHeader;
 
   //run the root finder:
   F->setParameters(It);
   rootSolverT Solver(F);
   Solver.setStartPoint(F->guessStartPoint());
 
-#if DEBUG>=STATUS
-  cout << __FILE__ << " : Solving saddle point equations for z = " <<  Solver.getLastPoint()<< " at Parameters = " << *It <<endl;
+#if DEBUG>=SPAM
+  cout << __FILE__ << " : Child starts solving for Parameters = " << *It <<endl;
 #endif
 
+#if DEBUG>=SPAM
   int steps = 0;
+#endif
+
   solver_state state = CONTINUE;
 
   while (state == CONTINUE){
     state = Solver.step(precisionGoal);
-#if DEBUG>=DETAIL
+#if DEBUG>=SPAM
     steps++;
-    cout << __FILE__ << " : After " << steps << " iterations the solver achieved |f| = " << Solver.getAbsF() << ". State = " << state <<endl;
+    cout << __FILE__ << " : After " << steps << " runs the solver achieved |f| = " << Solver.getAbsF() << ". State = " << state <<endl;
 #endif
   }
 
-#if DEBUG>=DETAIL
+#if DEBUG>=STATUS
   if (Solver.getState()==SUCCESS){
     cout << __FILE__ << " : The solver found an approximate root. ";
     cout << "at Parameters = " << *It <<endl<<endl;
   }else{
-    cout << __FILE__ << " : The solver got stuck after " << steps << " iterations\nat z =\n" << Solver.getLastPoint() << "\nwhere f =\n" << Solver.getLastValue()<<endl;
+    cout << __FILE__ << " : The solver got stuck at z =\n" << Solver.getLastPoint() << "\nwhere f =\n" << Solver.getLastValue()<<endl;
     cout << __FILE__ << " : Parameters = " << *It <<endl<<endl;
   }
 #endif
 
-  if (Solver.getState()==MRS_SUCCESS){
-    out << Solver.getLastPointInDatFormat() <<"\t"<<*It<<endl;
+  if (Solver.getState()==SUCCESS){
+    out << Solver << "\t" << *It << endl;
   }else{
-    out << "#Could not find a root for Parameters = " << *It<<endl;
+    out << "#Could not find a root for Parameters = " << *It << endl;
   }
 
   out.close();
 
-  return 0;
+#if DEBUG>=STATUS
+  cout << __FILE__ << " : Child finished."<<endl;
+#endif
+
+  return Solver.getState() == SUCCESS;
 }
 
 
@@ -180,7 +197,7 @@ int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<ro
 
 
 template <typename rootSolverT, class parameterSetIterator>
-void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, double precisionGoal){
+void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, string outFileHeader, double precisionGoal){
 
   //------------------------------------------------------------------------------------------
   // batch processing
@@ -189,10 +206,10 @@ void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_fun
 #if MULTITHREADED
 #if DEBUG>=STATUS
   if(NThreads>1){
-    cout <<endl << __FILE__ << " : RUN: Start launching " << NThreads << " parallel threads."<<endl;
+    cout <<endl << __FILE__ << " :  Start launching " << NThreads << " parallel threads."<<endl;
   }else{
 #if DEBUG>=DETAIL
-    cout << __FILE__ << " : RUN: You could compile the single threaded version than setting NThreads=1."<<endl;
+    cout << __FILE__ << " : You could compile the single threaded version than setting NThreads=1."<<endl;
 #endif
   }
 #endif
@@ -203,7 +220,7 @@ void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_fun
 #else
 #if DEBUG>=WARN
   if(NThreads>1){
-    cout <<endl << "WARN: BATCH_SOLVER: RUN: This programm was compiled as the single threaded Version. NThreads is ignored."<<endl;
+    cout <<endl << __FILE__ << " : This programm was compiled as the single threaded Version. NThreads is ignored."<<endl;
   }
 #endif
 #endif
@@ -224,9 +241,9 @@ void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_fun
 
 #if MULTITHREADED
     int wait =1000;
-    t[cT] = std::async(launch::async, childProc, F, It, fileName, precisionGoal);
+    t[cT] = std::async(launch::async, childProc, F, It, fileName, outFileHeader, precisionGoal);
 #if DEBUG>=STATUS
-    cout << "Batch_SOLVER RUN: Launched new thread for Parameters = " << *It << " in slot " << cT <<endl;
+    cout << __FILE__ << " : Launched new thread for Parameters = " << *It << " in slot " << cT <<endl;
 #endif
     //search next free thread
     cT=-1;
@@ -256,9 +273,9 @@ void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_fun
 
 #else //not MULTITHREADED
 #if DEBUG>=STATUS
-    cout << "BATCH_SOLVER RUN: Start working on Parameters = " << *It << " in single threaded mode." << endl;
+    cout << __FILE__ << " : Start working on Parameters = " << *It << " in single threaded mode." << endl;
 #endif
-    childProc(F,It, fileName, precisionGoal);
+    childProc(F,It, fileName, outFileHeader, precisionGoal);
 #endif //MULTITHREADED
 
     It++;
@@ -275,7 +292,7 @@ void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_fun
 #endif
 
 #if DEBUG>=STATUS
-  cout << "BATCH_SOLVER RUN: Collecting results using cat and deleting part files"<<endl;
+  cout << __FILE__ << " : Collecting results using cat and deleting part files"<<endl;
 #endif
 
   stringstream cmd;
@@ -285,7 +302,7 @@ void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_fun
 
 
 #if DEBUG>=STATUS
-  cout <<endl << "BATCH_SOLVER RUN:: FINISHED"<<endl<<endl;
+  cout <<endl << __FILE__ << " : FINISHED"<<endl<<endl;
 #endif
 
 }

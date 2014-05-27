@@ -9,7 +9,7 @@
  * of the form (valueT f, double x). It behaves like (and internally
  * uses) a std::list, but additional implements extrapolation of
  * values. I.e. using the known (f_i, x_i) a polynomial function p(x)
- * is fitted to minimise \f$(\sum_i ||f_i - p(x_i)||^2 \f$. 
+ * is fitted to minimise \f$(\sum_i ||f_i - p(x_i)||^2 \f$.
  *
  *
  *
@@ -38,6 +38,9 @@
 #include <list>
 #include <vector>
 #include <memory>
+
+#include <random>
+#include <chrono>
 using namespace std;
 
 #include <eigen3/Eigen/Dense>
@@ -92,7 +95,6 @@ public:
 
 
 
-
 /**
  *
  * The data type dataT X should be accessible via X[i] for \$f i \in
@@ -123,9 +125,7 @@ protected:
   bool calculateCoefficients();
   void forget();
 
-
-
-  specialised<dataT,numericalT,dataDim> accessor;
+  static specialised<dataT, numericalT,dataDim> accessor;
 
 
 public:
@@ -133,6 +133,10 @@ public:
   typedef numericalT numerical_type;
   typedef extrapolationData<dataT,numericalT,dataDim> own_type;
 
+
+  /// produce a random dataT vector with iid gaussian components of mean 0 and std. devaition 1
+  /// caution, the return is real valued! If you want imaginary iid just call again and multiply by I
+  static dataT gaussBlob(default_random_engine*& gen =0, int seed=42);
 
   /// This function fits an order degree polynomial to the stored data
   dataT extrapolate(double to);
@@ -185,7 +189,8 @@ public:
 };
 
 
-
+template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int degree>
+specialised<dataT, numericalT,dataDim> extrapolationData<dataT,numericalT,dataDim,degree>::accessor;
 
 //----------------------------------------------------------------------
 
@@ -208,10 +213,20 @@ dataT extrapolationData<dataT,numericalT,dataDim,degree>::extrapolate(double to)
 #endif
 
   if(!extrapolated){
-    if(!calculateCoefficients() || coeffs.size() == 0){
-      throw std::runtime_error(string(__FILE__) + string(" : Error extrapolating data."));
+    if(!calculateCoefficients()){
+      //use constant extrapolation instead
+      value_type last = this->back();
+      this->clear();
+      this->push_back(last);
+      calculateCoefficients();
     }
   }
+
+  if(coeffs.size() == 0){
+    throw std::runtime_error(string(__FILE__) + string(" : Error extrapolating 0 data points."));
+  }
+    
+  
 
 #if DEBUG > SPAM
   cout <<  __FILE__ << " : " << coeffs.size() << " coefficients known for degree " << degree << " polynomial" <<endl;
@@ -245,7 +260,33 @@ dataT extrapolationData<dataT,numericalT,dataDim,degree>::extrapolate(double to)
 }
 
 
+//-------------------------------------------------------------------------------------------
 
+
+template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int degree>
+dataT extrapolationData<dataT,numericalT,dataDim,degree>::gaussBlob(default_random_engine*& gen,int seed){
+
+  if(gen ==0){
+#if DEBUG>=WARN
+    cout << __FILE__ << " : Caution! Creating new random number generator. This should happen at most once!"<<endl;
+#endif
+    if (seed==0){
+      seed = chrono::system_clock::now().time_since_epoch().count();
+    }
+    gen = new default_random_engine(seed);
+  }
+
+  normal_distribution<double> nd;
+  
+  dataT re;
+  for(unsigned int k=0;k<dataDim;k++){
+    accessor.access(re,k) = nd(*gen);
+  }
+  return re;
+}
+
+
+//-------------------------------------------------------------------------------------------
 
 template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int degree>
 bool extrapolationData<dataT,numericalT,dataDim,degree>::calculateCoefficients(){
@@ -255,6 +296,8 @@ bool extrapolationData<dataT,numericalT,dataDim,degree>::calculateCoefficients()
   cout <<  __FILE__ << " : (re) calculating coefficients of the extrapolated polynomial from " <<this->size() << " data points."<<endl;
 #endif
 
+  coeffs.clear();
+
   if (this->size() ==0){
 #if DEBUG >= ERR
     cerr << __FILE__ << " : no data points to fit to."<<endl;
@@ -262,7 +305,7 @@ bool extrapolationData<dataT,numericalT,dataDim,degree>::calculateCoefficients()
     return false;
   }
 
-  coeffs.clear();
+
   for(unsigned int i=0;i<=degree;i++){
     coeffs.push_back(shared_ptr<dataT >(new dataT));
   }

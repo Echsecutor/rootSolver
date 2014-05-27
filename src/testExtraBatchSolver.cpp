@@ -23,14 +23,11 @@
  */
 
 
-#define DEBUG 11
-
 #ifndef MULTITHREADED
 #define MULTITHREADED 1
 #endif
 
 #include "preProDebugFlags.h"
-
 
 #include <iostream>
 #include <string>
@@ -38,16 +35,14 @@
 
 #include <cstdlib>//rand
 
-
+//trial function
+#include "polynomials.hpp"
 
 //actual root finding:
 #include "multiRootSolver.hpp"
 #include "singleRootSolver.hpp"
 #include "batchSolver.hpp"
 #include "extrapolationSolver.hpp"
-
-//trial function
-#include "polynomials.hpp"
 
 
 
@@ -142,7 +137,7 @@ int main(int args, char *arg[]){
   typedef extraSolver<MRS> extraMRS;
   typedef batchSolver<extraMRS, PSI<dim> > batchExtraMRS;
 
-  batchExtraMRS::run(nThreads,  F, it, end, outFileName + "-MRS", epsilon);
+  batchExtraMRS::run(nThreads,  F, it, end, outFileName + "-MRS","#Solutions of some random multi-dimensional polynomial equations\n", epsilon);
 
   cout << __FILE__ << " : Finished."<<endl<<endl;
 
@@ -162,7 +157,7 @@ int main(int args, char *arg[]){
   batch_extra_polynomial *FOne = new batch_extra_polynomial(&(*itOne));
 
 
-  batchExtraSRS::run(nThreads, FOne, itOne, endOne, outFileName + "-SRS", epsilon);
+  batchExtraSRS::run(nThreads, FOne, itOne, endOne, outFileName + "-SRS","#Solutions of some random polynomial equation\n", epsilon);
 
 
 
