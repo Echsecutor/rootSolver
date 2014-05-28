@@ -152,7 +152,7 @@ void help(){
 ///
 int main(int args, char *arg[]){
 
-  cout.precision(3);
+  cout.precision(5);
   cout << std::scientific;
 
   char * cnfFile=0;
@@ -196,7 +196,7 @@ int main(int args, char *arg[]){
   }
 
   double dim=1;
-  double epsilon = 1e-8;
+  double epsilon = 1e-9;
   double bsbm = 1.0;
 
   double fromOmega = 1e-3;
@@ -207,11 +207,11 @@ int main(int args, char *arg[]){
 
   double bmTarget=1e-2;///< will extrapolate from b=0 or from file towards bNuGoal
   double Db=1e-8;///< initial b step size, dynamically adapted
-  double maxDb=1e-2;///< sets a minimal resolution in b 
+  double maxDb=1e-3;///< sets a minimal resolution in b 
 
   double minDb=1e-10;///< avoid getting stuck
 
-  double precisionGoal=1e-10;
+  double precisionGoal=1e-12;
   int desiredNrSteps=32;
 
   int NThreads=8;

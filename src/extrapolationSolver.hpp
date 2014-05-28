@@ -191,31 +191,36 @@ solver_state extraSolver<rootSolverT>::step(double epsilonF,double epsilonZ){
 
     bool goodPoint=false;
     double randomness=1e-2;
+    int tries=0;
     while(!goodPoint){
+      tries++;
 #if DEBUG>=DETAIL
       cout << __FILE__ << " : Extrapolating start point." <<endl;
 #endif
       if(this->randomiseExtrapolation){
-        rootSolverT::setStartPoint(dat.extrapolate(calc->get_extra_parameter()) + dP * randomness * (dat.gaussBlob(gen)+ I*dat.gaussBlob(gen)) );
+	typename rootSolverT::value_type ex = dat.extrapolate(calc->get_extra_parameter(), &randomness);
+        rootSolverT::setStartPoint(ex + randomness * (dat.gaussBlob(gen)+ I*dat.gaussBlob(gen)) );
       }else{
         rootSolverT::setStartPoint(dat.extrapolate(calc->get_extra_parameter()));
       }
 
       if(rootSolverT::getAbsF() > 1e-2){ //todo:hardcoded...
-        //we are likely running to fast
 #if DEBUG>=DETAIL
         cout << __FILE__ << " : Bad starting point. " <<endl;
 #endif
-        if(!slowDown(1.1)){
+        //we are likely running to fast
+        if(!slowDown(1.3)){
           goodPoint=true;//at least give this one a try
         }
-	//or the extrapolation is bad
-	randomness*=2.0;
+	//or extrapolation is bad -> fall back towards constant extrapolation
+	if(tries > 3 && dat.size() > dat.degree){
+	  dat.pop_front();
+	}
       }else{
         goodPoint=true;
       }
-    }
 
+    }
   }
 
 
@@ -295,6 +300,10 @@ void extraSolver<rootSolverT>::speedUp(const double& steps){
   }
 
   calc->set_extra_parameter(calc->get_extra_parameter() + dP);
+#if DEBUG>=SPAM
+    cout << __FILE__ << " : speedUp() changed to P = " << calc->get_extra_parameter() <<endl;
+#endif
+
 }
 
 template <typename rootSolverT>
@@ -313,6 +322,10 @@ bool extraSolver<rootSolverT>::slowDown(double factor){
   }
 
   calc->set_extra_parameter(calc->get_extra_parameter() - oldDp + dP);
+
+#if DEBUG>=SPAM
+    cout << __FILE__ << " : slowDown() changed to P = " << calc->get_extra_parameter() <<endl;
+#endif
 
   return true;
 }

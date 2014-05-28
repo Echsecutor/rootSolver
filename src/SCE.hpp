@@ -115,6 +115,9 @@ public:
 class SCE : public virtual batch_functions<eSRS,  list<SCE_parameters>::iterator > {
 private:
 
+  //init flags
+  bool dBMSet;
+
   //parameters:
   SCE_parameters* p;
   double n;///< dim = 2 n +1
@@ -132,7 +135,7 @@ private:
 
 public:
 
-  SCE(double bs_over_bm, double final_bm, double max_d_bm, double min_d_bm, double ini_d_bm):p(0), bs_bm(bs_over_bm),target_bm(final_bm),max_change(max_d_bm),min_change(min_d_bm),initial_change(ini_d_bm){}
+  SCE(double bs_over_bm, double final_bm, double max_d_bm, double min_d_bm, double ini_d_bm):dBMSet(false),p(0), bs_bm(bs_over_bm),target_bm(final_bm),max_change(max_d_bm),min_change(min_d_bm),initial_change(ini_d_bm){}
 
 
   //Overrides from
@@ -188,7 +191,6 @@ void SCE::setParameters(SCE::iterator It){
 #if DEBUG>=SPAM
   cout << __FILE__<<" : cutOff = " << p->cutOff << " in dimension " << p->dim<<endl;
 #endif
-
 }
 
 
@@ -199,6 +201,7 @@ double SCE::get_extra_parameter(){
 void SCE::set_extra_parameter(double b){
   p->bm=b;
   p->bs = bs_bm * b;
+  dBMSet=false;
 }
 
 double SCE::get_initial(){
@@ -228,15 +231,20 @@ void SCE::computeInt(){
   Int=0.0;
 
   if(p->dim==1.0){
+    complex<double> D = - 2.0 * b;
+    complex<double> C = a + 2.0 * p->dim * b;
+    complex<double> rt= sqrt(C*C - D*D);
+
 #if DEBUG >= SPAM
-    cout << __FILE__ << " : Using exact 1d integral"<<endl;
+    cout << __FILE__ << " : Using exact 1d integral, C=" << C << ", D=" << D <<endl;
 #endif
-    complex<double> rt= sqrt(a*a - b*b);
+
 
     Int = 1.0 / rt;
-    if(abs(a + rt) < abs(b)){//correct branch of sqrt
+    if(abs(C + rt) < abs(D)){//correct branch of sqrt
       Int*=-1.0;
     }
+
   }else{
 
     // This implements the Debeye approximation of the integral in question. In d=1 we would have:
@@ -276,10 +284,11 @@ void SCE::changePoint(const SCE::value_type x){
   BS = 1.0 + p->bs * dBS;
 
   a = p->g * p->z + p->bs * dBS *(1.0 - p->dim);
-  b = - BS * dBS;
+  b = - BS * dBS / 2.0 / p->dim;
 
   computeInt();
 
+  dBMSet=true;
 }
 
 complex<double> SCE::arctanOverX(complex<double> x){
@@ -292,6 +301,8 @@ complex<double> SCE::arctanOverX(complex<double> x){
 
 /// The actual computation is done at changePoint
 SCE::value_type SCE::calcF(){
+  if(!dBMSet)
+    changePoint(dBM);//make sure internals are up to date
   return BS * Int - 1.0;
 }
 
@@ -305,13 +316,18 @@ SCE::derivative_type SCE::calcJ(){
   complex<double> DdBS= BS * dBS * Dg / p->g  + dBS*(1.0 - p->bs * dBS / BM / (BM + p->bm)) * (2.0 * BM + p->bm) / BM / (BM + p->bm) * DBM;
 
   complex<double> Da = p->z * Dg + p->bs * DdBS *(1.0 - p->dim);
-  complex<double> Db = - p->bs * dBS * DdBS - BS * DdBS;
+  complex<double> Db = (- p->bs * dBS * DdBS - BS * DdBS) / 2.0 / p->dim;
 
   complex<double> DInt=0.0;
 
   if(p->dim == 1.0){
+    complex<double> D = - 2.0 * b;
+    complex<double> C = a + 2.0 * p->dim * b;
+    complex<double> DD = - 2.0 * Db;
+    complex<double> DC = Da + 2.0 * p->dim * Db;
 
-    DInt = Int*Int*Int * (b * Db - a * Da);
+
+    DInt = Int*Int*Int * (D * DD - C * DC);
 
   }else{
 
@@ -339,7 +355,7 @@ SCE::derivative_type SCE::calcJ(){
 SCE::value_type SCE::guessStartPoint(){
 
   a = p->z*p->z;
-  b = 1.0;
+  b = 1.0 / 2.0 / p->dim;
 
   computeInt();
 
@@ -347,6 +363,7 @@ SCE::value_type SCE::guessStartPoint(){
   dBM = p->g * p->z -1.0;
 
   return dBM;
+
 }
 
 

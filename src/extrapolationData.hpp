@@ -111,7 +111,7 @@ public:
  * extra (de)referencing is performed!
  *
  */
-template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int degree=3>
+template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int polynomialDegree=3>
 class extrapolationData : protected list<extraDat<dataT> >{//Eigen alignement... I should check wether the speed gain is worth the effort...
 protected:
 
@@ -129,6 +129,7 @@ protected:
 
 
 public:
+  static const unsigned int degree;
   typedef extraDat<dataT> value_type;
   typedef numericalT numerical_type;
   typedef extrapolationData<dataT,numericalT,dataDim> own_type;
@@ -139,7 +140,7 @@ public:
   static dataT gaussBlob(default_random_engine*& gen =0, int seed=42);
 
   /// This function fits an order degree polynomial to the stored data
-  dataT extrapolate(double to);
+  dataT extrapolate(double to, double * err=0);
 
 
   //The following are all esentially just passing to the corresponding
@@ -176,6 +177,8 @@ public:
 
 };
 
+template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int polynomialDegree>
+const unsigned int extrapolationData<dataT,numericalT,dataDim,polynomialDegree>::degree = polynomialDegree;
 
 template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int degree>
 specialised<dataT, numericalT,dataDim> extrapolationData<dataT,numericalT,dataDim,degree>::accessor;
@@ -192,18 +195,23 @@ void extrapolationData<dataT,numericalT,dataDim,degree>::forget(){
 }
 
 
-
+/// if desired, *err will be set to the deviation of back().dat from the extrapolation to back().extra
 template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int degree>
-dataT extrapolationData<dataT,numericalT,dataDim,degree>::extrapolate(double to){
+dataT extrapolationData<dataT,numericalT,dataDim,degree>::extrapolate(double to, double * err){
 
-#if DEBUG > SPAM
-  cout <<  __FILE__ << " : Extrapolated point requested."<<endl;
+#if DEBUG >= SPAM
+  cout <<  __FILE__ << " : Extrapolation to " << to << " requested."<<endl;
 #endif
+
+  value_type last = this->back();
 
   if(!extrapolated){
     if(!calculateCoefficients()){
+
+#if DEBUG >= WARN
+      cout <<  __FILE__ << " : Extrapolation failed. Falling back to constant extrapolation."<<endl;
+#endif
       //use constant extrapolation instead
-      value_type last = this->back();
       this->clear();
       this->push_back(last);
       calculateCoefficients();
@@ -211,37 +219,41 @@ dataT extrapolationData<dataT,numericalT,dataDim,degree>::extrapolate(double to)
   }
 
   if(coeffs.size() == 0){
-    throw std::runtime_error(string(__FILE__) + string(" : Error extrapolating 0 data points."));
+    throw runtime_error(string(__FILE__) + string(" : Error extrapolating 0 data points."));
   }
     
   
-
 #if DEBUG > SPAM
   cout <<  __FILE__ << " : " << coeffs.size() << " coefficients known for degree " << degree << " polynomial" <<endl;
 #endif
 
-  dataT re;
-
   typename vector<shared_ptr<dataT > >::iterator it = coeffs.begin();
 
-  // #if DEBUG > SPAM
-  //   cout <<  __FILE__ << " : First coefficient is " << *(*it) <<endl;
-  // #endif
-
-  re = *(*it);
-
+  dataT re = *(*it);
   double pow = to;
+
+  dataT errEst = *(*it);
+  double powErr = last.extra;
+
   while(++it != coeffs.end()){
     re += *(*it) * pow;
     pow*=to;
-    // #if DEBUG > SPAM
-    //   cout <<  __FILE__ << " : next coefficient is " << *(*it) <<endl;
-    // #endif
+    if(err !=0){
+      errEst += *(*it) * powErr;
+      powErr*=last.extra;
+    }
   }
 
-#if DEBUG > SPAM
+#if DEBUG >= SPAM
   cout <<  __FILE__ << " : result: \n" << re <<endl;
 #endif
+
+  if(err != 0){
+    *err = abs(errEst - *(last.dat));
+#if DEBUG >= SPAM
+  cout <<  __FILE__ << " : error estimate: " << *err <<endl;
+#endif
+  }
 
   return re;
 
