@@ -69,6 +69,9 @@ static complex<double> I(0.0,1.0);
 //------------------------------------------------------------------------------------------
 class SCE_parameters;
 
+
+//todo: idea: try long double
+
 typedef extraSolver<singleRootSolver<complex<double> > > eSRS;
 typedef batchSolver<eSRS, list<SCE_parameters>::iterator> beSRS;
 
@@ -303,7 +306,10 @@ complex<double> SCE::arctanOverX(complex<double> x){
 SCE::value_type SCE::calcF(){
   if(!dBMSet)
     changePoint(dBM);//make sure internals are up to date
+
+
   return BS * Int - 1.0;
+  //todo: idea: use log(BS*Int) instead???
 }
 
 
