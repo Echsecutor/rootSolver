@@ -13,7 +13,7 @@ Let me know if this license doesn't work for you.
 
 ### Version
 
-1.0.2014-05-27 (second alpha release)
+1.0.2014-05-15
 
 The Version number is formatted as "M.S.D" where M is the major release branch (backward compatibility to all non-alpha releases of the same branch is guaranteed), S is the state of this release (0 for alpha, 1 for beta, 2 for stable), and D is the date formatted as yyyy-mm-dd.
 

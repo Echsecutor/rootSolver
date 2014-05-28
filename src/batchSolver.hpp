@@ -105,13 +105,13 @@ private:
   batchSolver& operator=(const batchSolver&);
 
 
-  static int childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, double precisionGoal);
+  static int childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, double precisionGoal, bool saveIntermediateSteps);
 
 public:
 
   typedef parameterSetIterator iterator;
 
-  static void run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, string outFileHeader, double precisionGoal);
+  static void run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, string outFileHeader, double precisionGoal, bool saveIntermediateSteps=false);
 
 };
 
@@ -123,7 +123,7 @@ public:
 //------------------------------------------------------------------------------------------
 
 template<typename rootSolverT, class parameterSetIterator>
-int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, double precisionGoal){
+int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, double precisionGoal, bool saveIntermediateSteps){
 
   ofstream out;
 
@@ -159,6 +159,12 @@ int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<ro
 
   while (state == CONTINUE){
     state = Solver.step(precisionGoal);
+    if(saveIntermediateSteps){
+#if DEBUG>=DETAIL
+      cout << __FILE__ << " : saving intermediate: " << Solver << "\t" << *It << endl;
+#endif
+      out << Solver << "\t" << *It << endl;
+    }
 #if DEBUG>=SPAM
     steps++;
     cout << __FILE__ << " : After " << steps << " runs the solver achieved |f| = " << Solver.getAbsF() << ". State = " << state <<endl;
@@ -197,7 +203,7 @@ int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<ro
 
 
 template <typename rootSolverT, class parameterSetIterator>
-void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, string outFileHeader, double precisionGoal){
+void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, string outFileHeader, double precisionGoal, bool saveIntermediateSteps){
 
   //------------------------------------------------------------------------------------------
   // batch processing
@@ -241,7 +247,7 @@ void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_fun
 
 #if MULTITHREADED
     int wait =1000;
-    t[cT] = std::async(launch::async, childProc, F, It, fileName, outFileHeader, precisionGoal);
+    t[cT] = std::async(launch::async, childProc, F, It, fileName, outFileHeader, precisionGoal, saveIntermediateSteps);
 #if DEBUG>=STATUS
     cout << __FILE__ << " : Launched new thread for Parameters = " << *It << " in slot " << cT <<endl;
 #endif
@@ -275,7 +281,7 @@ void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_fun
 #if DEBUG>=STATUS
     cout << __FILE__ << " : Start working on Parameters = " << *It << " in single threaded mode." << endl;
 #endif
-    childProc(F,It, fileName, outFileHeader, precisionGoal);
+    childProc(F,It, fileName, outFileHeader, precisionGoal, saveIntermediateSteps);
 #endif //MULTITHREADED
 
     It++;
@@ -298,7 +304,7 @@ void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_fun
   stringstream cmd;
   cmd << "cat " <<outFilePrefix << "__part_*.dat > " << outFilePrefix << "__collected.dat;";
   cmd << "rm "<<outFilePrefix << "__part_*.dat";
-  system(cmd.str().c_str());
+  cout << "return: " <<  system(cmd.str().c_str()) <<endl;
 
 
 #if DEBUG>=STATUS

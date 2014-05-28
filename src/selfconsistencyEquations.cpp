@@ -274,7 +274,7 @@ int main(int args, char *arg[]){
   cout << __FILE__ << " : Starting solver..."<<endl;
 #endif
 
-  beSRS::run(NThreads, F, params.begin(), params.end(), outFilePrefix, string("#real(dBM)\timag(dBM)\t") + SCE_parameters::getFormat() + "\n", precisionGoal);
+  beSRS::run(NThreads, F, params.begin(), params.end(), outFilePrefix, string("#real(dBM)\timag(dBM)\t") + SCE_parameters::getFormat() + "\n", precisionGoal, !onlySaveGoal);
 
 
   cout << endl<< __FILE__ << " : SCE SOLVER FINISHED"<<endl<<endl;

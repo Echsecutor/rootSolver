@@ -155,22 +155,8 @@ public:
   }
   void push_back (const value_type& val){list<value_type>::push_back(val);forget();}
   void push_back (const dataT& dat, const double& extra){
-#if DEBUG >=SPAM
-    cout << __FILE__ << " : allocating new data" <<endl;
-#endif
-    extraDat<dataT> t(dat, extra);
-#if DEBUG >=SPAM
-    cout << __FILE__ << " : created" <<endl;
-#endif
-    push_back(t);
-#if DEBUG >=SPAM
-    cout << __FILE__ << " : forget..." <<endl;
-#endif
+    push_back(extraDat<dataT>(dat, extra));
     forget();
-#if DEBUG >=SPAM
-    cout << __FILE__ << " : alocating new data done" <<endl;
-#endif
-
   }
 
   void pop_back(){list<value_type>::pop_back();forget();}
@@ -182,6 +168,8 @@ public:
   void sort (Compare comp){list<value_type>::sort(comp);forget();}
 
   typename list<value_type>::size_type size(){return list<value_type>::size();}
+
+  typename list<value_type>::reference back(){return list<value_type>::back();};
 
   //if you need more of the usual publics of list, just add forwards
   //as above ;)
@@ -373,7 +361,9 @@ bool extrapolationData<dataT,numericalT,dataDim,degree>::calculateCoefficients()
 
 
     if(! target.isApprox(powers * coefficient)){
+#if DEBUG>=ERR
       cerr << __FILE__ << " : " << "Extrapolation failed."<<endl;
+#endif
       return false;
     }
 

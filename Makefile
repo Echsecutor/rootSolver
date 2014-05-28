@@ -44,10 +44,15 @@ export PREFLAGS = -D MULTITHREADED=0 -D DEBUG=11
 
 VPATH = $(SRCDIR):$(TESTDIR)
 
-#constructionSite: clean selfconsistencyEquations.out
+constructionSite: clean selfconsistencyEquations.out
 
 all: folders testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out selfconsistencyEquations.out
 	@-mv *.dat $(TESTDIR) 2>/dev/null
+
+
+#production:
+SCE: selfconsistencyEquations.cpp
+	$(CC) -D MULTITHREADED=1 -D DEBUG=1 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
 
 folders:
 	@-mkdir $(BINDIR)

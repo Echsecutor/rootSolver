@@ -155,6 +155,7 @@ public:
   virtual solver_state step(double epsilonF, double epsilonZ);
   virtual solver_state step(double epsilonF){return rootSolverT::step(epsilonF);};//no clue why this is not automatic....
 
+  virtual void writeDatToStream(ostream &out);
 };
 
 
@@ -163,12 +164,22 @@ public:
 // Implementation:
 //------------------------------------------------------------------------------------------
 
+
+template <typename rootSolverT>
+void extraSolver<rootSolverT>::writeDatToStream(ostream &out){
+
+  //reset to last successful
+  rootSolverT::setStartPoint(*(dat.back().dat));
+
+  rootSolverT::writeDatToStream(out);
+}
+
+
 /// One "step" of the extrapolation solver actually consists of a full
 /// run of the underlying solver to produce a new data point for the
 /// next extrapolation.
 template <typename rootSolverT>
 solver_state extraSolver<rootSolverT>::step(double epsilonF,double epsilonZ){
-
 
 
   if(calc->get_extra_parameter()==calc->get_initial() || dat.size()==0){//should be equivalent
@@ -179,13 +190,13 @@ solver_state extraSolver<rootSolverT>::step(double epsilonF,double epsilonZ){
   }else{
 
     bool goodPoint=false;
-
+    double randomness=1e-2;
     while(!goodPoint){
 #if DEBUG>=DETAIL
       cout << __FILE__ << " : Extrapolating start point." <<endl;
 #endif
       if(this->randomiseExtrapolation){
-        rootSolverT::setStartPoint(dat.extrapolate(calc->get_extra_parameter()) + dP*1e-2 * (dat.gaussBlob(gen)+ I*dat.gaussBlob(gen)) );
+        rootSolverT::setStartPoint(dat.extrapolate(calc->get_extra_parameter()) + dP * randomness * (dat.gaussBlob(gen)+ I*dat.gaussBlob(gen)) );
       }else{
         rootSolverT::setStartPoint(dat.extrapolate(calc->get_extra_parameter()));
       }
@@ -198,6 +209,8 @@ solver_state extraSolver<rootSolverT>::step(double epsilonF,double epsilonZ){
         if(!slowDown(1.1)){
           goodPoint=true;//at least give this one a try
         }
+	//or the extrapolation is bad
+	randomness*=2.0;
       }else{
         goodPoint=true;
       }
