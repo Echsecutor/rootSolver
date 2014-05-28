@@ -119,6 +119,9 @@ void singleRootSolver<T>::update(){
 #if DEBUG >= SPAM
   cout << __FILE__ << " : Changed point to "<< (this->z) <<"\nwith f="<< (this->f) <<"\ni.e. |f| = "<< this->absF <<endl;
 #endif
+  if(!(this->absF == this->absF)){//nan
+    throw runtime_error(string(__FILE__) + string(" : function evaluation failed."));
+  }
 }
 
 
@@ -166,6 +169,9 @@ solver_state singleRootSolver<T>::step(double epsF_,double epsZ_){
   this->state = CONTINUE;
 
   this->J = this->calc->calcJ();
+  if(!(this->J == this->J)){//nan
+    throw runtime_error(string(__FILE__) + string(" : derivative evaluation failed."));
+  }
 
 #if DEBUG >= SPAM
   cout << __FILE__ << " : Calculated J=" << (this->J)<<endl;

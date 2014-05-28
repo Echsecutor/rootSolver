@@ -227,6 +227,9 @@ template <typename T,  int dim>
 #if DEBUG > 0
   cout << __FILE__ << " : Changed point to \n"<< this->z <<"\nwith f=\n"<< this->f <<"\ni.e. ||f|| = "<< this->absF <<endl;
 #endif
+  if(!(this->absF == this->absF)){//nan
+    throw runtime_error(string(__FILE__) + string(" : function evaluation failed."));
+  }
 }
 
 
