@@ -255,11 +255,12 @@ int main(int args, char *arg[]){
   while(omega < toOmega){
     params.push_back(SCE_parameters(dim,epsilon + I * omega));
 
+    omega += DOmega;
+
     if(logStep){
-      DOmega += DOmega * DOmega / omega;
+      DOmega = omega * omega / (omega - DOmega) - omega;
     }
 
-    omega += DOmega;
   }
   params.push_back(SCE_parameters(dim,epsilon + I * toOmega));
 
