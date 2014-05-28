@@ -187,6 +187,12 @@ solver_state extraSolver<rootSolverT>::step(double epsilonF,double epsilonZ){
     cout << __FILE__ << " : Guessing start point." <<endl;
 #endif
     rootSolverT::setStartPoint(calc->guessStartPoint());// for p_initial a good starting point should be known
+#if DEBUG>=WARN
+    if(rootSolverT::getAbsF()>epsilonF){
+      cout << __FILE__ << " : Bad starting point guess! |f|=" << rootSolverT::getAbsF()  <<endl;
+    }
+#endif
+
   }else{
 
     bool goodPoint=false;
@@ -266,6 +272,15 @@ solver_state extraSolver<rootSolverT>::step(double epsilonF,double epsilonZ){
 #if DEBUG>=DETAIL
     cout << __FILE__ << " : The solver got stuck. Reducing step size and retrying."<<endl;
 #endif
+
+    if(dat.size()==0){
+#if DEBUG>=WARN
+      cout << __FILE__ << " : Could not find an initial root. Check your starting point / reduce the precision goal!"<<endl;
+#endif
+      this->state=STUCK;
+      return this->state;
+    }
+
     if(!slowDown()){
 #if DEBUG>=WARN
       cout << __FILE__ << " : Step size to small. Extrapolation got stuck."<<endl;

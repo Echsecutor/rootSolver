@@ -159,7 +159,7 @@ int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<ro
 
   while (state == CONTINUE){
     state = Solver.step(precisionGoal);
-    if(saveIntermediateSteps){
+    if(saveIntermediateSteps && Solver.getState() == CONTINUE){
 #if DEBUG>=DETAIL
       cout << __FILE__ << " : saving intermediate: " << Solver << "\t" << *It << endl;
 #endif

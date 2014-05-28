@@ -137,7 +137,7 @@ void singleRootSolver<T>::setStartPoint(T z_){
 /// tries to guess a good step size
 template <typename T>
 solver_state singleRootSolver<T>::step(double epsilonF){
-  double epsilonZ = epsilonF *1e-2;
+  double epsilonZ = epsilonF *1e-4;
   return step(epsilonF,epsilonZ);
 }
 
