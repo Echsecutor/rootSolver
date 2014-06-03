@@ -51,7 +51,7 @@ using namespace Eigen;
 #include "batchSolver.hpp"
 #include "extrapolationSolver.hpp"
 
-
+using namespace root_solver;
 
 class polyParams{
 public:

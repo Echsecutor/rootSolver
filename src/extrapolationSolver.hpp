@@ -73,278 +73,282 @@ static double I(1.0);
 // Declarations:
 //------------------------------------------------------------------------------------------
 
-/// extra_functions interface
-/// only one dimensional extrapolation is (currently) implemented,
-/// hence the type of \f$p\f$ is fixed to double
-template <typename rootSolverT>
-class extra_functions : public virtual rootSolverT::functions_type{
-public:
+namespace root_solver{
 
-  virtual double get_extra_parameter()=0;
-  virtual void set_extra_parameter(double p)=0;
-
-  virtual double get_initial()=0;
-  virtual double get_final()=0;
-
-  virtual double get_max_change()=0;
+  // static const solver_state EXTRAPOLATION_SUCCESS(10);
+  // static const solver_state EXTRAPOLATION_STUCK(-11);
 
 
-  virtual double get_direction(){ //< unlikely to be overwritten
-    if (get_final() < get_initial())
-      return -1.0;
-    return 1.0;
-  }
+  /// extra_functions interface
+  /// only one dimensional extrapolation is (currently) implemented,
+  /// hence the type of \f$p\f$ is fixed to double
+  template <typename rootSolverT>
+  class extra_functions : public virtual rootSolverT::functions_type{
+  public:
 
-  // overwrite these if you want something more sophisticated. ;)
-  virtual double get_min_change(){
-    return get_max_change() / pow(2,20);
-  }
+    virtual double get_extra_parameter()=0;
+    virtual void set_extra_parameter(double p)=0;
 
-  virtual double get_initial_change(){
-    return get_min_change() * pow(2,10);
-  }
+    virtual double get_initial()=0;
+    virtual double get_final()=0;
 
-
-};
+    virtual double get_max_change()=0;
 
 
-/** /brief The extraSolver is a wrapper class.
- *
- * The actual equation solving is done by rootSolverT internally,
- * hence an appropriate implementation of the rootSolver
- * (e.g. multiRootSolver or singleRootSolver) has to be specified.
- *
- * numericalT should be the same as the numerical type of the underlying rootSolver (e.g. complex<double>) and dataDim should be the dimension of value_type. so extraSolver<multiRootSolver<complex<double >, dim >, dim>
- *
- */
-template <typename rootSolverT>
-class extraSolver : public virtual rootSolverT{
+    virtual double get_direction(){ //< unlikely to be overwritten
+      if (get_final() < get_initial())
+        return -1.0;
+      return 1.0;
+    }
 
-protected:
+    // overwrite these if you want something more sophisticated. ;)
+    virtual double get_min_change(){
+      return get_max_change() / pow(2,20);
+    }
 
-  default_random_engine* gen;
-
-  extra_functions<rootSolverT>* calc;
-
-  double dP;
-
-  bool randomiseExtrapolation;
-
-  typedef extrapolationData<typename rootSolverT::value_type, typename rootSolverT::numerical_type, rootSolverT::value_dimension> data_type;
-
-  data_type dat;
-
-  void speedUp(const double& steps);
-  bool slowDown(double factor=1.5);
+    virtual double get_initial_change(){
+      return get_min_change() * pow(2,10);
+    }
 
 
-public:
-
-  typedef extra_functions<rootSolverT> functions_type;
-
-  unsigned int usePoints;///< maximal number of points to use for extrapolation
-  unsigned int desiredSteps;///< per internal solver run
+  };
 
 
-  //explicit call to rootSolver constructor needed?
-  extraSolver(functions_type * f_, bool randomise = true, int seed = 42, unsigned int desiredNumberOfSteps=50, unsigned int usePoints_=8) : rootSolver<typename rootSolverT::value_type, typename rootSolverT::derivative_type>(f_), rootSolverT(f_), gen(new default_random_engine (seed)), calc(f_), randomiseExtrapolation(randomise), usePoints(usePoints_), desiredSteps(desiredNumberOfSteps){
-    dP = f_->get_initial_change();
-  }
+  /** /brief The extraSolver is a wrapper class.
+   *
+   * The actual equation solving is done by rootSolverT internally,
+   * hence an appropriate implementation of the rootSolver
+   * (e.g. multiRootSolver or singleRootSolver) has to be specified.
+   *
+   * numericalT should be the same as the numerical type of the underlying rootSolver (e.g. complex<double>) and dataDim should be the dimension of value_type. so extraSolver<multiRootSolver<complex<double >, dim >, dim>
+   *
+   */
+  template <typename rootSolverT>
+  class extraSolver : public virtual rootSolverT{
+
+  protected:
+
+    default_random_engine* gen;
+
+    extra_functions<rootSolverT>* calc;
+
+    double dP;
+
+    bool randomiseExtrapolation;
+
+    typedef extrapolationData<typename rootSolverT::value_type, typename rootSolverT::numerical_type, rootSolverT::value_dimension> data_type;
+
+    data_type dat;
+
+    void speedUp(const double steps);
+    bool slowDown(double factor=1.5);
 
 
-  virtual solver_state step(double epsilonF, double epsilonZ);
-  virtual solver_state step(double epsilonF){return rootSolverT::step(epsilonF);};//no clue why this is not automatic....
+  public:
 
-  virtual void writeDatToStream(ostream &out);
-};
+    typedef extra_functions<rootSolverT> functions_type;
 
-
-
-//------------------------------------------------------------------------------------------
-// Implementation:
-//------------------------------------------------------------------------------------------
+    unsigned int usePoints;///< maximal number of points to use for extrapolation
+    unsigned int desiredSteps;///< per internal solver run
 
 
-template <typename rootSolverT>
-void extraSolver<rootSolverT>::writeDatToStream(ostream &out){
-
-  //reset to last successful
-  rootSolverT::setStartPoint(*(dat.back().dat));
-
-  rootSolverT::writeDatToStream(out);
-}
+    //explicit call to rootSolver constructor needed?
+    extraSolver(functions_type * f_, bool randomise = true, int seed = 42, unsigned int desiredNumberOfSteps=50, unsigned int usePoints_=8) : rootSolver<typename rootSolverT::value_type, typename rootSolverT::derivative_type>(f_), rootSolverT(f_), gen(new default_random_engine (seed)), calc(f_), randomiseExtrapolation(randomise), usePoints(usePoints_), desiredSteps(desiredNumberOfSteps){
+      dP = f_->get_initial_change();
+    }
 
 
-/// One "step" of the extrapolation solver actually consists of a full
-/// run of the underlying solver to produce a new data point for the
-/// next extrapolation.
-template <typename rootSolverT>
-solver_state extraSolver<rootSolverT>::step(double epsilonF,double epsilonZ){
+    virtual solver_state step();
+
+  };
 
 
-  if(calc->get_extra_parameter()==calc->get_initial() || dat.size()==0){//should be equivalent
+
+  //------------------------------------------------------------------------------------------
+  // Implementation:
+  //------------------------------------------------------------------------------------------
+
+
+  /// One "step" of the extrapolation solver actually consists of a full
+  /// run of the underlying solver to produce a new data point for the
+  /// next extrapolation.
+  template <typename rootSolverT>
+  solver_state extraSolver<rootSolverT>::step(){
+
+    if(dat.size()==0){
 #if DEBUG>=SPAM
-    cout << __FILE__ << " : Guessing start point." <<endl;
+      cout << __FILE__ << " : Guessing start point." <<endl;
 #endif
-    rootSolverT::setStartPoint(calc->guessStartPoint());// for p_initial a good starting point should be known
+      rootSolverT::setStartPoint(calc->guessStartPoint());// for p_initial a good starting point should be known
 #if DEBUG>=WARN
-    if(rootSolverT::getAbsF()>epsilonF){
-      cout << __FILE__ << " : Bad starting point guess! |f|=" << rootSolverT::getAbsF()  <<endl;
-    }
-#endif
-
-  }else{
-
-    bool goodPoint=false;
-    double randomness=1e-2;
-    int tries=0;
-    while(!goodPoint){
-      tries++;
-#if DEBUG>=DETAIL
-      cout << __FILE__ << " : Extrapolating start point." <<endl;
-#endif
-      if(this->randomiseExtrapolation){
-	typename rootSolverT::value_type ex = dat.extrapolate(calc->get_extra_parameter(), &randomness);
-        rootSolverT::setStartPoint(ex + randomness * (dat.gaussBlob(gen)+ I*dat.gaussBlob(gen)) );
-      }else{
-        rootSolverT::setStartPoint(dat.extrapolate(calc->get_extra_parameter()));
+      if(rootSolverT::getAbsF() > this->getPrecisionGoal()){
+        cout << __FILE__ << " : Bad starting point guess! |f|=" << rootSolverT::getAbsF()  <<endl;
       }
-
-      if(rootSolverT::getAbsF() > 1e-2){ //todo:hardcoded...
-#if DEBUG>=DETAIL
-        cout << __FILE__ << " : Bad starting point. " <<endl;
-#endif
-        //we are likely running to fast
-        if(!slowDown(1.3)){
-          goodPoint=true;//at least give this one a try
-        }
-	//or extrapolation is bad -> fall back towards constant extrapolation
-	if(tries > 3 && dat.size() > dat.degree){
-	  dat.pop_front();
-	}
-      }else{
-        goodPoint=true;
-      }
-
-    }
-  }
-
-
-
-#if DEBUG>=DETAIL
-  cout << __FILE__ << " : Start solving for parameter " << calc->get_extra_parameter() <<endl;
 #endif
 
-  int step=1;
-  while (rootSolverT::step(epsilonF,epsilonZ) == CONTINUE){
-#if DEBUG>=SPAM
-    cout << __FILE__ << " : after " << step << " steps, the solver achieved |f| = " << rootSolverT::getAbsF() <<endl;
-#endif
-    step++;
-  }
+    }else{
 
-  if (rootSolverT::getState()==SUCCESS){
-#if DEBUG>=DETAIL
-    cout << __FILE__ << " : The solver found an approximate root for parameter " << calc->get_extra_parameter() << " at " << rootSolverT::getLastPoint() << " with |f|= " << rootSolverT::getAbsF() << endl;
-#endif
-
-    if (calc->get_extra_parameter() == calc->get_final()){
-      this->state=SUCCESS;
-      return this->state;
-    }
-
-    dat.push_back(rootSolverT::getLastPoint(), calc->get_extra_parameter());
-
-#if DEBUG>=DETAIL
-    cout << __FILE__ << " : Saving root for extrapolation. Now we have "<< dat.size() << " in store." << endl;
-#endif
-
-    speedUp(step);
-
+    calc->set_extra_parameter(calc->get_extra_parameter() + dP);
     if(calc->get_direction() * calc->get_extra_parameter() > calc->get_direction() * calc->get_final())
       calc->set_extra_parameter(calc->get_final());
 
-    while(dat.size() > usePoints){
-      dat.pop_front();
-    }
+#if DEBUG>=SPAM
+    cout << __FILE__ << " : Changed to P = " << calc->get_extra_parameter() <<endl;
+#endif
 
-  }else{
+      bool goodPoint=false;
+      double randomness=1e-2;
+      int tries=0;
+      while(!goodPoint){
+        tries++;
 #if DEBUG>=DETAIL
-    cout << __FILE__ << " : The solver got stuck. Reducing step size and retrying."<<endl;
+        cout << __FILE__ << " : Extrapolating start point." <<endl;
 #endif
+        if(this->randomiseExtrapolation){
+          typename rootSolverT::value_type ex = dat.extrapolate(calc->get_extra_parameter(), &randomness);
+          rootSolverT::setStartPoint(ex + randomness * (dat.gaussBlob(gen)+ I*dat.gaussBlob(gen)) );
+        }else{
+          rootSolverT::setStartPoint(dat.extrapolate(calc->get_extra_parameter()));
+        }
 
-    if(dat.size()==0){
-#if DEBUG>=WARN
-      cout << __FILE__ << " : Could not find an initial root. Check your starting point / reduce the precision goal!"<<endl;
-#endif
-      this->state=STUCK;
-      return this->state;
-    }
-
-    if(!slowDown()){
-#if DEBUG>=WARN
-      cout << __FILE__ << " : Step size to small. Extrapolation got stuck."<<endl;
-#endif
-      this->state=STUCK;
-      return this->state;
-    }
-
-  }
-
-  this->state=CONTINUE;
-  return this->state;
-
-}
-
-
-template <typename rootSolverT>
-void extraSolver<rootSolverT>::speedUp(const double& steps){
-  if(steps < desiredSteps/2){
-    dP*=2.0;
-    if(dP>calc->get_max_change()){
-      dP=calc->get_max_change();
-    }
-#if DEBUG>=SPAM
-    cout << __FILE__ << " : Speed up to dP = " << dP <<endl;
-#endif
-  }else if(steps > desiredSteps){
-    dP/=2.0;
-#if DEBUG>=SPAM
-    cout << __FILE__ << " : Slowdown to dP = " << dP <<endl;
-#endif
-  }
-
-  calc->set_extra_parameter(calc->get_extra_parameter() + dP);
-#if DEBUG>=SPAM
-    cout << __FILE__ << " : speedUp() changed to P = " << calc->get_extra_parameter() <<endl;
-#endif
-
-}
-
-template <typename rootSolverT>
-bool extraSolver<rootSolverT>::slowDown(double factor){
-  double oldDp=dP;
-
-  dP /= factor;
-#if DEBUG>=SPAM
-  cout << __FILE__ << " : Slowdown to dP = " << dP << " ( minDP = " << calc->get_min_change() << " )" << endl;
-#endif
-  if(dP < calc->get_min_change()){
+        if(rootSolverT::getAbsF() > 1e-2){ //todo:hardcoded...
 #if DEBUG>=DETAIL
-    cout << __FILE__ << " : Step size to small!" <<endl;
+          cout << __FILE__ << " : Bad starting point. " <<endl;
 #endif
-    return false;
+          //we are likely running to fast
+          if(!slowDown(1.3)){
+            goodPoint=true;//at least give this one a try
+          }
+          //or extrapolation is bad -> fall back towards constant extrapolation
+          if(tries > 3 && dat.size() > dat.degree){
+            dat.pop_front();
+          }
+	  calc->set_extra_parameter(calc->get_extra_parameter() + dP);
+#if DEBUG>=SPAM
+	  cout << __FILE__ << " : Changed to P = " << calc->get_extra_parameter() <<endl;
+#endif
+        }else{
+          goodPoint=true;
+        }
+
+      }
+    }
+
+
+
+#if DEBUG>=DETAIL
+    cout << __FILE__ << " : Start solving for parameter " << calc->get_extra_parameter() <<endl;
+#endif
+
+    int step=1;
+    while (rootSolverT::step() >= CONTINUE){
+#if DEBUG>=SPAM
+      cout << __FILE__ << " : after " << step << " steps, the solver achieved |f| = " << rootSolverT::getAbsF() <<endl;
+#endif
+      step++;
+    }
+
+    if (rootSolverT::getState()==SUCCESS){
+#if DEBUG>=DETAIL
+      cout << __FILE__ << " : The solver found an approximate root for parameter " << calc->get_extra_parameter() << " at " << rootSolverT::getLastPoint() << " with |f|= " << rootSolverT::getAbsF() << endl;
+#endif
+
+      if (calc->get_extra_parameter() == calc->get_final()){
+        this->state=SUCCESS;
+        return this->state;
+      }
+
+      dat.push_back(rootSolverT::getLastPoint(), calc->get_extra_parameter());
+
+#if DEBUG>=DETAIL
+      cout << __FILE__ << " : Saving root for extrapolation. Now we have "<< dat.size() << " in store." << endl;
+#endif
+
+      speedUp(step);
+
+      while(dat.size() > usePoints){
+        dat.pop_front();
+      }
+
+    }else{
+#if DEBUG>=DETAIL
+      cout << __FILE__ << " : The solver got stuck. Reducing step size and retrying."<<endl;
+#endif
+
+      if(dat.size()==0){
+#if DEBUG>=WARN
+        cout << __FILE__ << " : Could not find an initial root. Check your starting point / reduce the precision goal!"<<endl;
+#endif
+        this->state=STUCK;
+        return this->state;
+      }
+
+      if(!slowDown()){
+#if DEBUG>=WARN
+        cout << __FILE__ << " : Step size to small. Extrapolation got stuck."<<endl;
+#endif
+	if(this->getPrecisionGoal() > 1e-5){//todo:hardcoded
+	  this->state=STUCK;
+	  return this->state;
+	}
+#if DEBUG>=WARN
+        cout << __FILE__ << " : Reducing precision Goal!"<<endl;
+#endif
+	this->setPrecisionGoal(this->getPrecisionGoal()*10.0);
+	speedUp(0);
+      }
+
+
+    }
+
+    this->state=CONTINUE;
+    return this->state;
+
   }
 
-  calc->set_extra_parameter(calc->get_extra_parameter() - oldDp + dP);
+
+  template <typename rootSolverT>
+  void extraSolver<rootSolverT>::speedUp(const double steps){
+    if(steps < desiredSteps/2){
+      dP*=2.0;
+      if(dP>calc->get_max_change()){
+        dP=calc->get_max_change();
+      }
+#if DEBUG>=SPAM
+      cout << __FILE__ << " : Speed up to dP = " << dP <<endl;
+#endif
+    }else if(steps > desiredSteps){
+      dP/=2.0;
+#if DEBUG>=SPAM
+      cout << __FILE__ << " : Slowdown to dP = " << dP <<endl;
+#endif
+    }
+  }
+
+  template <typename rootSolverT>
+  bool extraSolver<rootSolverT>::slowDown(double factor){
+    double oldDp=dP;
+
+    dP /= factor;
+#if DEBUG>=SPAM
+    cout << __FILE__ << " : Slowdown to dP = " << dP << " ( minDP = " << calc->get_min_change() << " )" << endl;
+#endif
+    if(dP < calc->get_min_change()){
+#if DEBUG>=DETAIL
+      cout << __FILE__ << " : Step size to small!" <<endl;
+#endif
+      return false;
+    }
+
+    calc->set_extra_parameter(calc->get_extra_parameter() - oldDp);
 
 #if DEBUG>=SPAM
-    cout << __FILE__ << " : slowDown() changed to P = " << calc->get_extra_parameter() <<endl;
+    cout << __FILE__ << " : slowDown() reset to P = " << calc->get_extra_parameter() <<endl;
 #endif
 
-  return true;
-}
+    return true;
+  }
 
-
+}//end namespace
 
 #endif

@@ -33,11 +33,15 @@
 
 #include <cstdlib>//rand
 
+using namespace std;
+
 //actual root finding:
 #include "singleRootSolver.hpp"
 
 //trial function
 #include "polynomials.hpp"
+
+using namespace root_solver;
 
 
 void help(){
@@ -102,9 +106,13 @@ int main(int args, char *arg[]){
   SRS.setStartPoint(F->guessStartPoint());
 
   int step=1;
-  while (SRS.step(epsilon) == CONTINUE){
+  SRS.setPrecisionGoal(epsilon);
+  solver_state state=CONTINUE;
+
+  while (state >= CONTINUE){
+    state=SRS.step();
 #if DEBUG>=DETAIL
-    cout << __FILE__ << " : After " << step << " iterations the solver achieved |f| = " << SRS.getAbsF() <<endl<<endl;
+    cout << __FILE__ << " : After " << step << " iterations the solver achieved |f| = " << SRS.getAbsF() << " state = " << endl<<endl;
 #endif
     step++;
   }

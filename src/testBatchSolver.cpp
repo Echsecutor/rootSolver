@@ -37,12 +37,14 @@
 
 #include <cstdlib>//rand
 
-
+using namespace std;
 
 //actual root finding:
 #include "multiRootSolver.hpp"
 #include "singleRootSolver.hpp"
 #include "batchSolver.hpp"
+
+using namespace root_solver;
 
 //trial function
 #include "polynomials.hpp"

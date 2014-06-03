@@ -47,6 +47,7 @@
 #include <complex>
 #include<cmath>//M_PI
 #include <list>
+#include <limits>
 using namespace std;
 
 
@@ -60,36 +61,29 @@ static complex<double> I(0.0,1.0);
 #include "batchSolver.hpp"
 #include "extrapolationSolver.hpp"
 
-
+using namespace root_solver;
 
 
 
 //------------------------------------------------------------------------------------------
 // Declarations:
 //------------------------------------------------------------------------------------------
-class SCE_parameters;
 
-
-//todo: idea: try long double
-
-typedef extraSolver<singleRootSolver<complex<double> > > eSRS;
-typedef batchSolver<eSRS, list<SCE_parameters>::iterator> beSRS;
-
-
+template<typename realT>
 class SCE_parameters{
 public:
 
-  double dim;
-  double bs, bm, cutOff;
-  complex<double> z,g;
+  realT dim;
+  realT bs, bm, cutOff;
+  complex<realT> z,g;
 
   SCE_parameters():dim(0),bs(0),bm(0),cutOff(0),z(0.0),g(0.0){}
-  SCE_parameters(double dim_,complex<double> z_):dim(dim_),bs(0),bm(0),cutOff(0),z(z_),g(0.0){}
+  SCE_parameters(realT dim_,complex<realT> z_):dim(dim_),bs(0),bm(0),cutOff(0),z(z_),g(0.0){}
 
-  SCE_parameters(const SCE_parameters& p2):dim(p2.dim),bs(p2.bs),bm(p2.bm),cutOff(p2.cutOff),z(p2.z),g(p2.g){}
+  SCE_parameters(const SCE_parameters<realT>& p2):dim(p2.dim),bs(p2.bs),bm(p2.bm),cutOff(p2.cutOff),z(p2.z),g(p2.g){}
 
 
-  friend ostream& operator<< (ostream &out, SCE_parameters &p){
+  friend ostream& operator<< (ostream &out, SCE_parameters<realT> &p){
     out << p.dim << "\t" << p.bs << "\t" << p.bm << "\t" << real(p.z) << "\t" << imag(p.z) << "\t" << real(p.g) << "\t" << imag(p.g);//cutOff is computed from dim, irrelevant
     return out;
   }
@@ -98,7 +92,7 @@ public:
     return string("dim\tbs\tbm\treal(z)\timag(z)\treal(g)\timag(g)");
   }
 
-  bool operator==(const SCE_parameters& rhs) {
+  bool operator==(const SCE_parameters<realT>& rhs) {
     bool re = true;
     re = re && this->dim == rhs.dim;
     re = re && this->bs == rhs.bs;
@@ -113,56 +107,67 @@ public:
 
 
 //-----------------------------------------------------------------------------------
+/*doesnt work with g++ 4.6.3 ... o0
+template<typename realT> using eSRS = extraSolver<singleRootSolver<complex<realT> > >;
 
+template<typename realT> using beSRS = batchSolver<extraSolver<singleRootSolver<complex<realT> > >, list<SCE_parameters<realT> >::iterator>;
+*/
 
-class SCE : public virtual batch_functions<eSRS,  list<SCE_parameters>::iterator > {
+template<typename realT>
+class SCE : public virtual batch_functions<extraSolver<singleRootSolver<complex<realT> > >, typename list<SCE_parameters<realT> >::iterator > {
 private:
+
+  typedef batch_functions<extraSolver<singleRootSolver<complex<realT> > >, typename list<SCE_parameters<realT> >::iterator > parent;
 
   //init flags
   bool dBMSet;
 
   //parameters:
-  SCE_parameters* p;
-  double n;///< dim = 2 n +1
+  SCE_parameters<realT>* p;
+  realT n;///< dim = 2 n +1
 
-  double bs_bm;///< fixed ratio \f$ \frac{b_s}{b_m} \f$
-  double target_bm, max_change, min_change, initial_change;
+  realT bs_bm;///< fixed ratio \f$ \frac{b_s}{b_m} \f$
+  realT target_bm, max_change, min_change, initial_change;
 
   //temporaries read at changePoint:
-  complex<double> BS,dBS,BM,dBM,a,b,Int;
+  complex<realT> BS,dBS,BM,dBM,a,b,Int;
 
 
   void computeInt();
 
-  complex<double> arctanOverX(complex<double> x);
+  complex<realT> arctanOverX(complex<realT> x);
 
 public:
 
-  SCE(double bs_over_bm, double final_bm, double max_d_bm, double min_d_bm, double ini_d_bm):dBMSet(false),p(0), bs_bm(bs_over_bm),target_bm(final_bm),max_change(max_d_bm),min_change(min_d_bm),initial_change(ini_d_bm){}
+
+
+  SCE(realT bs_over_bm, realT final_bm, realT max_d_bm, realT min_d_bm, realT ini_d_bm):dBMSet(false),p(0), bs_bm(bs_over_bm),target_bm(final_bm),max_change(max_d_bm),min_change(min_d_bm),initial_change(ini_d_bm){}
 
 
   //Overrides from
   //batch:
-  virtual void setParameters(SCE::iterator It);
+  virtual void setParameters(typename SCE<realT>::iterator It);
+  //  using parent::setParameters;
+
 
   //extra:
-  virtual double get_extra_parameter();
-  virtual void set_extra_parameter(double p);
+  virtual realT get_extra_parameter();
+  virtual void set_extra_parameter(realT p);
 
-  virtual double get_initial();
-  virtual double get_final();
+  virtual realT get_initial();
+  virtual realT get_final();
 
-  virtual double get_max_change();
+  virtual realT get_max_change();
 
-  virtual double get_min_change();
-  virtual double get_initial_change();
+  virtual realT get_min_change();
+  virtual realT get_initial_change();
 
 
   //solver:
-  virtual value_type calcF();
-  virtual derivative_type calcJ();
-  virtual void changePoint(const value_type x);
-  virtual value_type guessStartPoint();
+  virtual typename SCE<realT>::value_type calcF();
+  virtual typename SCE<realT>::derivative_type calcJ();
+  virtual void changePoint(const typename SCE<realT>::value_type x);
+  virtual typename SCE<realT>::value_type guessStartPoint();
 
 };
 
@@ -174,7 +179,8 @@ public:
 //------------------------------------------------------------------------------------------
 
 /// the cut off is \f$ \Omega^{2n+1} = (2n+1) \pi^{n+1}\frac{2n!}{n!} \f$ for \f$ d = 2n+1 \f$
-void SCE::setParameters(SCE::iterator It){
+template<typename realT>
+void SCE<realT>::setParameters(typename SCE<realT>::iterator It){
   p = &(*It);
 
   n = floor((p->dim -1.0)/2.0);
@@ -184,8 +190,8 @@ void SCE::setParameters(SCE::iterator It){
     throw runtime_error(string(__FILE__) + string(" : Debeye approximation only implemented for odd dimensions."));
   }
 
-  double fac = M_PI;
-  for(double f = n + 1.0; f <= 2.0 * n; f++){
+  realT fac = M_PI;
+  for(realT f = n + 1.0; f <= 2.0 * n; f++){
     fac *= f * M_PI;
   }
 
@@ -196,47 +202,53 @@ void SCE::setParameters(SCE::iterator It){
 #endif
 }
 
-
-double SCE::get_extra_parameter(){
+template<typename realT>
+realT SCE<realT>::get_extra_parameter(){
   return p->bm;
 }
 
-void SCE::set_extra_parameter(double b){
+template<typename realT>
+void SCE<realT>::set_extra_parameter(realT b){
   p->bm=b;
   p->bs = bs_bm * b;
   dBMSet=false;
 }
 
-double SCE::get_initial(){
+template<typename realT>
+realT SCE<realT>::get_initial(){
   return 0.0;
 }
 
-double SCE::get_final(){
+template<typename realT>
+realT SCE<realT>::get_final(){
   return target_bm;
 }
 
-double SCE::get_max_change(){
+template<typename realT>
+realT SCE<realT>::get_max_change(){
   return max_change;
 }
 
-double SCE::get_min_change(){
+template<typename realT>
+realT SCE<realT>::get_min_change(){
   return min_change;
 }
 
-double SCE::get_initial_change(){
+template<typename realT>
+realT SCE<realT>::get_initial_change(){
   return initial_change;
 }
 
 
-
-void SCE::computeInt(){
+template<typename realT>
+void SCE<realT>::computeInt(){
 
   Int=0.0;
 
   if(p->dim==1.0){
-    complex<double> D = - 2.0 * b;
-    complex<double> C = a + 2.0 * p->dim * b;
-    complex<double> rt= sqrt(C*C - D*D);
+    complex<realT> D = - 2.0 * b;
+    complex<realT> C = a + 2.0 * p->dim * b;
+    complex<realT> rt= sqrt(C*C - D*D);
 
 #if DEBUG >= SPAM
     cout << __FILE__ << " : Using exact 1d integral, C=" << C << ", D=" << D <<endl;
@@ -260,13 +272,13 @@ void SCE::computeInt(){
 #endif
 
 
-    complex<double> rt= sqrt(b/a);
+    complex<realT> rt= sqrt(b/a);
     
     Int += arctanOverX(rt * p->cutOff);
 
 
     for(int k=0;k<n;k++){
-      Int -= pow(- b / a * p->cutOff * p->cutOff , k) / (2.0 * (double) k + 1.0);
+      Int -= pow(- b / a * p->cutOff * p->cutOff , k) / (2.0 * (realT) k + 1.0);
     }
 
     Int *= p->cutOff/a * pow(- a / b, (int)n);
@@ -276,8 +288,8 @@ void SCE::computeInt(){
 }
 
 
-
-void SCE::changePoint(const SCE::value_type x){
+template<typename realT>
+void SCE<realT>::changePoint(const typename SCE<realT>::value_type x){
   dBM = x;
   BM = 1.0 + p->bm * dBM;
 
@@ -294,7 +306,8 @@ void SCE::changePoint(const SCE::value_type x){
   dBMSet=true;
 }
 
-complex<double> SCE::arctanOverX(complex<double> x){
+template<typename realT>
+complex<realT> SCE<realT>::arctanOverX(complex<realT> x){
   if (abs(x) < 0.001){
     return 1.0 - x * x / 3.0;//at abs(x)=0.001 the relative error of this approximation is about 2e-13
   }
@@ -302,47 +315,48 @@ complex<double> SCE::arctanOverX(complex<double> x){
 
 }
 
+
 /// The actual computation is done at changePoint
-SCE::value_type SCE::calcF(){
+template<typename realT>
+typename SCE<realT>::value_type SCE<realT>::calcF(){
   if(!dBMSet)
     changePoint(dBM);//make sure internals are up to date
-
 
   return BS * Int - 1.0;
   //todo: idea: use log(BS*Int) instead???
 }
 
 
+template<typename realT>
+typename SCE<realT>::derivative_type SCE<realT>::calcJ(){
 
-SCE::derivative_type SCE::calcJ(){
+  complex<realT> Dg = (1.0 + 2.0 * p->bm * dBM + p->bm) / p->z;
 
-  complex<double> Dg = (1.0 + 2.0 * p->bm * dBM + p->bm) / p->z;
+  complex<realT> DBM = p->bm;
+  complex<realT> DdBS= BS * dBS * Dg / p->g  + dBS*(1.0 - p->bs * dBS / BM / (BM + p->bm)) * (2.0 * BM + p->bm) / BM / (BM + p->bm) * DBM;
 
-  complex<double> DBM = p->bm;
-  complex<double> DdBS= BS * dBS * Dg / p->g  + dBS*(1.0 - p->bs * dBS / BM / (BM + p->bm)) * (2.0 * BM + p->bm) / BM / (BM + p->bm) * DBM;
+  complex<realT> Da = p->z * Dg + p->bs * DdBS *(1.0 - p->dim);
+  complex<realT> Db = (- p->bs * dBS * DdBS - BS * DdBS) / 2.0 / p->dim;
 
-  complex<double> Da = p->z * Dg + p->bs * DdBS *(1.0 - p->dim);
-  complex<double> Db = (- p->bs * dBS * DdBS - BS * DdBS) / 2.0 / p->dim;
-
-  complex<double> DInt=0.0;
+  complex<realT> DInt=0.0;
 
   if(p->dim == 1.0){
-    complex<double> D = - 2.0 * b;
-    complex<double> C = a + 2.0 * p->dim * b;
-    complex<double> DD = - 2.0 * Db;
-    complex<double> DC = Da + 2.0 * p->dim * Db;
+    complex<realT> D = - 2.0 * b;
+    complex<realT> C = a + 2.0 * p->dim * b;
+    complex<realT> DD = - 2.0 * Db;
+    complex<realT> DC = Da + 2.0 * p->dim * Db;
 
 
     DInt = Int*Int*Int * (D * DD - C * DC);
 
   }else{
 
-    complex<double> t = p->cutOff / a / (1.0 + b / a * p->cutOff*p->cutOff);
+    complex<realT> t = p->cutOff / a / (1.0 + b / a * p->cutOff*p->cutOff);
     DInt += 0.5 * (t - Int) * (Db / b   - Da / a);
 
 
     for(int k=1;k<n;k++){
-      DInt -= pow( (- b / a  * p->cutOff * p->cutOff ), k ) / (2.0 * (double)k + 1.0) * (double)k * ( Db / b - Da / a) ;
+      DInt -= pow( (- b / a  * p->cutOff * p->cutOff ), k ) / (2.0 * (realT)k + 1.0) * (realT)k * ( Db / b - Da / a) ;
     }
 
  
@@ -358,7 +372,8 @@ SCE::derivative_type SCE::calcJ(){
 
 
 /// The deterministic limit is the well known harmonic crystal
-SCE::value_type SCE::guessStartPoint(){
+template<typename realT>
+typename SCE<realT>::value_type SCE<realT>::guessStartPoint(){
 
   a = p->z*p->z;
   b = 1.0 / 2.0 / p->dim;

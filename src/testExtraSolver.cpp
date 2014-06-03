@@ -33,6 +33,9 @@
 
 #include <cstdlib>//rand
 
+using namespace std;
+
+
 //actual root finding:
 #include "singleRootSolver.hpp"
 
@@ -41,6 +44,8 @@
 
 
 #include "extrapolationSolver.hpp"
+
+using namespace root_solver;
 
 
 typedef singleRootSolver<complex<double> > SRS;
@@ -105,9 +110,11 @@ int main(int args, char *arg[]){
 
   extraSolver<SRS > eSRS(F);
 
+  eSRS.setPrecisionGoal(epsilon);
+
   int step=0;
 
-  while (eSRS.step(epsilon) == CONTINUE){
+  while (eSRS.step() >= CONTINUE){
 #if DEBUG>=DETAIL
     cout << __FILE__ << " : After " << step << " runs the solver achieved |f| = " << eSRS.getAbsF() <<endl<<endl;
 #endif

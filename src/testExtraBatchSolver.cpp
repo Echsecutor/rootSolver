@@ -35,6 +35,8 @@
 
 #include <cstdlib>//rand
 
+using namespace std;
+
 //trial function
 #include "polynomials.hpp"
 
@@ -44,7 +46,7 @@
 #include "batchSolver.hpp"
 #include "extrapolationSolver.hpp"
 
-
+using namespace root_solver;
 
 
 void help(){

@@ -128,7 +128,8 @@ void readFile(const char * confFile,
         dim=(double)atoi(val);
       }else if(strcmp(para,"logStep")==0){
         logStep=(bool)atoi(val);
-      }else{
+      }
+      else{
 #if DEBUG>=ERR
         cerr << __FILE__ << " : ERR: Unknown parameter: " << line <<endl;
 #endif
@@ -151,6 +152,8 @@ void help(){
 /// main ;)
 ///
 int main(int args, char *arg[]){
+
+  typedef double real_type;
 
   cout.precision(5);
   cout << std::scientific;
@@ -195,24 +198,24 @@ int main(int args, char *arg[]){
     outFilePrefix = outDatFile;
   }
 
-  double dim=1;
-  double epsilon = 1e-9;
-  double bsbm = 1.0;
+  real_type dim=1;
+  real_type epsilon = 1e-9;
+  real_type bsbm = 1.0;
 
-  double fromOmega = 1e-3;
-  double toOmega = 2;
-  double DOmega = 1e-1;
+  real_type fromOmega = 1e-3;
+  real_type toOmega = 2;
+  real_type DOmega = 1e-1;
 
   bool logStep=false;///< toggle wether omega points are equally spaced on a linear or a log scale
 
-  double bmTarget=1e-2;///< will extrapolate from b=0 or from file towards bNuGoal
-  double Db=1e-8;///< initial b step size, dynamically adapted
-  double maxDb=1e-3;///< sets a minimal resolution in b 
+  real_type bmTarget=1e-2;///< will extrapolate from b=0 or from file towards bNuGoal
+  real_type Db=1e-8;///< initial b step size, dynamically adapted
+  real_type maxDb=1e-3;///< sets a minimal resolution in b 
 
-  double minDb=1e-10;///< avoid getting stuck
+  real_type minDb=1e-10;///< avoid getting stuck
 
-  double precisionGoal=1e-12;
-  int desiredNrSteps=32;
+  real_type precisionGoal=1e-12;
+  int desiredNrSteps=64;
 
   int NThreads=8;
 
@@ -238,7 +241,7 @@ int main(int args, char *arg[]){
   cout << "onlySaveGoal = " << onlySaveGoal <<endl;
   cout << endl;
 
-  cout << "The parameter format is\n" << SCE_parameters::getFormat() <<endl<<endl;
+  cout << "The parameter format is\n" << SCE_parameters<real_type>::getFormat() <<endl<<endl;
 
 #if DEBUG>=WARN
   if (precisionGoal < 1e-12){
@@ -247,13 +250,25 @@ int main(int args, char *arg[]){
 #endif
 
 
+
+#if DEBUG>=WARN
+  if(precisionGoal < 1e3 * numeric_limits<real_type>::epsilon()){
+    cout << __FILE__ << " : CAUTION! Precision goal " << precisionGoal << " is close to the lower machine precision error bound " << numeric_limits<real_type>::epsilon() <<endl;
+  }
+#endif
+
+  if(precisionGoal < numeric_limits<real_type>::epsilon()){
+    throw runtime_error(string(__FILE__) + string(" : Precision goal is lower than machine precision. Recompile this solver with higher internal precision!"));
+  }
+
+
 #if DEBUG >= STATUS
   cout << __FILE__ << " : Initialising parameter list..."<<endl;
 #endif
-  list <SCE_parameters> params;
-  double omega=fromOmega;
+  list <SCE_parameters<real_type> > params;
+  real_type omega=fromOmega;
   while(omega < toOmega){
-    params.push_back(SCE_parameters(dim,epsilon + I * omega));
+    params.push_back(SCE_parameters<real_type>(dim,epsilon + I * omega));
 
     omega += DOmega;
 
@@ -262,20 +277,20 @@ int main(int args, char *arg[]){
     }
 
   }
-  params.push_back(SCE_parameters(dim,epsilon + I * toOmega));
+  params.push_back(SCE_parameters<real_type>(dim,epsilon + I * toOmega));
 
 #if DEBUG >= STATUS
   cout << __FILE__ << " : I will work on " << params.size() << " parameter sets"<<endl;
   cout << __FILE__ << " : Preparing self consistency equation."<<endl;
 #endif
 
-  SCE * F = new SCE(bsbm, bmTarget, maxDb, minDb, Db);
+  SCE<real_type> * F = new SCE<real_type>(bsbm, bmTarget, maxDb, minDb, Db);
 
 #if DEBUG >= STATUS
   cout << __FILE__ << " : Starting solver..."<<endl;
 #endif
 
-  beSRS::run(NThreads, F, params.begin(), params.end(), outFilePrefix, string("#real(dBM)\timag(dBM)\t") + SCE_parameters::getFormat() + "\n", precisionGoal, !onlySaveGoal);
+  batchSolver<extraSolver<singleRootSolver<complex<real_type> > >, list<SCE_parameters<real_type> >::iterator>::run(NThreads, F, params.begin(), params.end(), outFilePrefix, string("#real(dBM)\timag(dBM)\t") + SCE_parameters<real_type>::getFormat() + "\n", precisionGoal, !onlySaveGoal);
 
 
   cout << endl<< __FILE__ << " : SCE SOLVER FINISHED"<<endl<<endl;

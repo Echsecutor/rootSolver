@@ -43,7 +43,7 @@
 #include <chrono>
 using namespace std;
 
-#include <eigen3/Eigen/Dense>
+#include "eigenWrapper.hpp"
 using namespace Eigen;
 
 
@@ -249,7 +249,7 @@ dataT extrapolationData<dataT,numericalT,dataDim,degree>::extrapolate(double to,
 #endif
 
   if(err != 0){
-    *err = abs(errEst - *(last.dat));
+    *err = myAbs<dataDim, dataT>(errEst - *(last.dat));
 #if DEBUG >= SPAM
   cout <<  __FILE__ << " : error estimate: " << *err <<endl;
 #endif

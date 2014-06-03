@@ -48,11 +48,14 @@ constructionSite: clean selfconsistencyEquations.out
 
 all: folders testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out selfconsistencyEquations.out
 	@-mv *.dat $(TESTDIR) 2>/dev/null
+	@echo 
+	@echo "[OK]		All tests Passed! :D"
+	@echo 
 
 
 #production:
 SCE: selfconsistencyEquations.cpp
-	$(CC) -D MULTITHREADED=1 -D DEBUG=1 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
+	$(CC) -D MULTITHREADED=1 -D DEBUG=5 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
 
 folders:
 	@-mkdir $(BINDIR)

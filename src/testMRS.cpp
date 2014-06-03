@@ -32,7 +32,7 @@
 
 #include <cstdlib>//rand
 
-
+using namespace std;
 
 //actual root finding:
 #include "multiRootSolver.hpp"
@@ -40,7 +40,7 @@
 //trial function
 #include "polynomials.hpp"
 
-
+using namespace root_solver;
 
 void help(){
   cout << "\nusage: test [-h] [-r] [-s SEED] [-m MAX_TOTAL_DEGREE] [-p PRECISION]"<<endl;
@@ -71,26 +71,26 @@ int main(int args, char *arg[]){
     if(strcmp(arg[i],"-h")==0||strcmp(arg[1],"--help")==0){
       help();
     }else if(strcmp(arg[i],"-r")==0){
-      cout << "TEST: Seeding RNG with time, hence producing 'unique' testcase"<<endl;
+      cout << __FILE__<<" : Seeding RNG with time, hence producing 'unique' testcase"<<endl;
       seed=time(NULL) ^ clock();
-      //      cout << "TEST: seed="<<seed<<endl;
+      //      cout << __FILE__ << " : seed="<<seed<<endl;
     }else if(strcmp(arg[i],"-s")==0){
       seed=atoi(arg[i+1]);
       i++;
     }else if(strcmp(arg[i],"-m")==0){
       maxTotalDegree=atoi(arg[i+1]);
-      cout << "TEST: Set maximum degree of polynomials to "<<maxTotalDegree<<endl;
+      cout << __FILE__ << " : Set maximum degree of polynomials to "<<maxTotalDegree<<endl;
       i++;
     }else if(strcmp(arg[i],"-p")==0){
       epsilon=atof(arg[i+1]);
-      cout << "TEST: Set precision to "<<epsilon<<endl;
+      cout << __FILE__ << " : Set precision to "<<epsilon<<endl;
       i++;
     }else{
-      cout << "TEST: Unrecognized option " << arg[i] <<endl;
+      cout << __FILE__ << " : Unrecognized option " << arg[i] <<endl;
     }
   }
 
-  cout << "TEST: Seeding RNG with seed="<<seed<<endl;
+  cout << __FILE__ << " : Seeding RNG with seed="<<seed<<endl;
   srand(seed);
 
   polyParams* para = new polyParams();
@@ -102,20 +102,23 @@ int main(int args, char *arg[]){
   MRS.setStartPoint(F->guessStartPoint());
 
   int step=1;
-  while (MRS.step(epsilon) == MRS_CONTINUE){
-    cout << "TEST: After " << step << " iterations the solver achieved |f| = " << MRS.getAbsF() <<endl<<endl;
+  MRS.setPrecisionGoal(epsilon);
+  solver_state state=MRS.step();
+  while (state >= CONTINUE){
+    cout << __FILE__ << " : After " << step << " iterations the solver achieved |f| = " << MRS.getAbsF() << ", state = " << state<<endl<<endl;
     step++;
+    state=MRS.step();
   }
-  cout << "TEST: After " << step << " iterations the solver achieved |f| = " << MRS.getAbsF() <<endl<<endl;
+  cout << __FILE__ << " : After " << step << " iterations the solver achieved |f| = " << MRS.getAbsF() <<endl<<endl;
 
-  if (MRS.getState()==MRS_SUCCESS){
-    cout << "TEST: The solver found an approximate root f(z) =\n" <<MRS.getLastValue()<< " \nat z =\n" << MRS.getLastPoint()<<endl;
+  if (MRS.getState()==SUCCESS){
+    cout << __FILE__ << " : The solver found an approximate root f(z) =\n" <<MRS.getLastValue()<< " \nat z =\n" << MRS.getLastPoint()<<endl;
   }else{
-    cout << "TEST: The solver got stuck after " << step << " iterations at z = \n" << MRS.getLastPoint() << "\nwhere f(z) =\n" << MRS.getLastValue()<<endl;
-    cout << "TEST: Last step size = " << MRS.getAbsLastStep() << " last abs value change = " << MRS.getLastAbsValueChange()<<endl;
+    cout << __FILE__ << " : The solver got stuck after " << step << " iterations at z = \n" << MRS.getLastPoint() << "\nwhere f(z) =\n" << MRS.getLastValue()<<endl;
+    cout << __FILE__ << " : Last step size = " << MRS.getAbsLastStep() << " last abs value change = " << MRS.getLastAbsValueChange()<<endl;
   }
 
-  cout << "TEST: The solver used " << F->getFunctionCallsCounter() << " function calls and computed the jacobian " << F->getJacobianCallsCounter() << " times."<<endl;
+  cout << __FILE__ << " : The solver used " << F->getFunctionCallsCounter() << " function calls and computed the jacobian " << F->getJacobianCallsCounter() << " times."<<endl;
 
   return 0;
 }

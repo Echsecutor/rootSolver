@@ -28,7 +28,7 @@
 
 using namespace std;
 
-#include <eigen3/Eigen/Dense>
+#include "eigenWrapper.hpp"
 using namespace Eigen;
 
 
