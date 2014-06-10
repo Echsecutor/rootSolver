@@ -191,9 +191,11 @@ void SCE<realT>::setParameters(typename SCE<realT>::iterator It){
     throw runtime_error(string(__FILE__) + string(" : Debeye approximation only implemented for odd dimensions."));
   }
 
-  realT fac = M_PI;
+  assert (root_solver::complex<realT>::PI != 0.0);
+
+  realT fac = root_solver::complex<realT>::PI;
   for(realT f = n + 1.0; f <= 2.0 * n; f++){
-    fac *= f * M_PI;
+    fac *= f * root_solver::complex<realT>::PI;
   }
 
   p->cutOff = pow( (2.0 * n + 1.0) * fac, 1.0 / (2.0 * n + 1.0) );

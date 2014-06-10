@@ -163,6 +163,11 @@ void help(){
 ///
 int main(int args, char *arg[]){
 
+  unsigned int precision=256;
+  mpreal::set_default_prec(precision);
+  root_solver::complex<real_type>::PI = const_pi(precision, mpreal::get_default_rnd());
+
+
   cout.precision(5);
   cout << std::scientific;
 
