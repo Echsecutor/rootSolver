@@ -38,13 +38,15 @@
 using namespace std;
 
 #include "rootSolver.hpp"
+#include "complex.hpp"
+
 
 namespace root_solver{
 
-  template <typename T>
-  class SRS_functions : public virtual functions<T,T >{
+  template <typename valueT>
+  class SRS_functions : public virtual functions<valueT,valueT>{
   public:
-    virtual T guessStartPoint(){return 0.0;}
+    virtual valueT guessStartPoint(){return valueT(0.0);}
   };
 
 
@@ -72,43 +74,46 @@ namespace root_solver{
    * 4. Run the solver like while (SRS.step() >= CONTINUE)
    *
    */
-  template <typename T>
-  class singleRootSolver : public virtual rootSolver<T,T>{
+  template <typename realT>
+  class singleRootSolver : public virtual rootSolver<root_solver::complex<realT>,root_solver::complex<realT> >{
+  public:
+    //import typenames
+    typedef rootSolver<root_solver::complex<realT>,root_solver::complex<realT> > root_solver_type;
+    typedef typename root_solver_type::real_type real_type;
+    typedef typename root_solver_type::scalar_type scalar_type;
+    typedef typename root_solver_type::value_type value_type;
+
   protected:
 
-    double epsZ;
-    double epsF;
+    real_type epsZ;
+    real_type epsF;
 
     void update();
 
   public:
 
-    typedef SRS_functions<T> functions_type;
-    typedef T numerical_type;
+    typedef SRS_functions<scalar_type> functions_type;
     static const int value_dimension = 1;
 
 
-    singleRootSolver(functions_type * f_) : rootSolver<T,T >(f_){}
+    singleRootSolver(functions_type * f_) : root_solver_type(f_){}
     ~singleRootSolver(){}
 
 
     /// Setting a new starting point will reset the solver
-    virtual void setStartPoint(T z_);
+    virtual void setStartPoint(value_type z_);
+
+    using root_solver_type::step;
 
     virtual solver_state step();
-
-    //no clue why this is not automatic.....
-    virtual solver_state step(double epsF){return rootSolver<T,T>::step(epsF);}
-    virtual solver_state step(double epsF, double epsZ){return rootSolver<T,T>::step(epsF,epsZ);}
-
 
   };
 
 
   //---------------------------------------------------------------------------
 
-  template <typename T>
-  void singleRootSolver<T>::update(){
+  template <typename realT>
+  void singleRootSolver<realT>::update(){
     this->calc->changePoint(this->z);
     this->f = this->calc->calcF();
     this->absF = abs((this->f));
@@ -120,16 +125,16 @@ namespace root_solver{
     }
   }
 
-  template <typename T>
-  void singleRootSolver<T>::setStartPoint(T z_){
+  template <typename realT>
+  void singleRootSolver<realT>::setStartPoint(value_type z_){
     this->z=z_;
     this->state=INIT;
     update();
   }
 
 
-  template <typename T>
-  solver_state singleRootSolver<T>::step(){
+  template <typename realT>
+  solver_state singleRootSolver<realT>::step(){
 
     if(this->absF < this->getPrecisionGoal()){
       this->state=SUCCESS;
@@ -162,18 +167,28 @@ namespace root_solver{
     cout << __FILE__ << " : Calculated J=" << (this->J)<<endl;
 #endif
 
-    T direction = (this->f) / (this->J);
-    double stepSize=abs(direction);
+    value_type direction = (this->f) / (this->J);
+    real_type stepSize = abs(direction);
 
     direction /= stepSize; // direction \in U(1)
 
 
-    T newZ = (this->z) - stepSize * direction;
+    value_type newZ = (this->z) - stepSize * direction;
     this->calc->changePoint(newZ);
-    T newF = this->calc->calcF();
-    double newAbsF =abs(newF);
+    value_type newF = this->calc->calcF();
+    real_type newAbsF =abs(newF);
 
-    solver_state newState = checkStatus(newAbsF, this->absF, stepSize);
+#if DEBUG>=ERR
+    real_type checkError = abs(((newF - this->f)/(newZ - this->z) - this->J))/abs(this->J);
+#if DEBUG>=SPAM
+    cout << __FILE__ << " : relative deviation of finite differenze from derivative " << checkError << " for step size " << stepSize <<endl;
+#endif
+    if(checkError / stepSize > 1e2){
+      cerr <<endl << __FILE__ << " : CAUTION! There is most likely an error in your derivatives!"<<endl;
+    }
+#endif
+
+    solver_state newState = this->checkStatus(newAbsF, this->absF, stepSize);
 
     while(newState==REJECT){
 #if DEBUG >= SPAM
@@ -184,7 +199,7 @@ namespace root_solver{
       this->calc->changePoint(newZ);
       newF = this->calc->calcF();
       newAbsF = abs(newF);
-      newState = checkStatus(newAbsF, this->absF, stepSize);
+      newState = this->checkStatus(newAbsF, this->absF, stepSize);
     }
 
     this->f = newF;

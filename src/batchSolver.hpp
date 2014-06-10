@@ -106,13 +106,13 @@ namespace root_solver{
     batchSolver& operator=(const batchSolver&);
 
 
-    static int childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, double precisionGoal, bool saveIntermediateSteps);
+    static int childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, typename rootSolverT::real_type precisionGoal, bool saveIntermediateSteps);
 
   public:
 
     typedef parameterSetIterator iterator;
 
-    static void run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, string outFileHeader, double precisionGoal, bool saveIntermediateSteps=false);
+    static void run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, string outFileHeader, typename rootSolverT::real_type precisionGoal, bool saveIntermediateSteps=false);
 
   };
 
@@ -124,7 +124,7 @@ namespace root_solver{
   //------------------------------------------------------------------------------------------
 
   template<typename rootSolverT, class parameterSetIterator>
-  int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, double precisionGoal, bool saveIntermediateSteps){
+  int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, typename rootSolverT::real_type precisionGoal, bool saveIntermediateSteps){
 
     ofstream out;
 
@@ -158,6 +158,7 @@ namespace root_solver{
 
     solver_state state = CONTINUE;
     Solver.setPrecisionGoal(precisionGoal);
+    Solver.setMinStepSize(1.0e5 * numeric_limits<typename rootSolverT::real_type>::epsilon());
 
     while (state >= CONTINUE){
       state = Solver.step();
@@ -205,7 +206,7 @@ namespace root_solver{
 
 
   template <typename rootSolverT, class parameterSetIterator>
-  void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, string outFileHeader, double precisionGoal, bool saveIntermediateSteps){
+  void batchSolver<rootSolverT, parameterSetIterator>::run(int NThreads, batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, parameterSetIterator End, string outFilePrefix, string outFileHeader, typename rootSolverT::real_type precisionGoal, bool saveIntermediateSteps){
 
     //------------------------------------------------------------------------------------------
     // batch processing

@@ -70,9 +70,11 @@ void help(){
 ///
 int main(int args, char *arg[]){
 
+  typedef double realT;
+
   const int dim=3;
 
-  double epsilon=1e-8;
+  realT epsilon=1e-8;
 
   int seed=42;
   int maxTotalDegree=9;
@@ -125,19 +127,19 @@ int main(int args, char *arg[]){
   cout <<endl << __FILE__ << " : Starting Multi Root Solver Extrapolation Batch Test."<<endl<<endl;
 
 
-  polyParams* para = new polyParams();
+  polyParams<realT>* para = new polyParams<realT>();
   para->maxDegree = maxTotalDegree;
-  PSI<dim> it(para);
+  PSI<dim,realT> it(para);
   ++it;//randomise
   it.counter=0;//reset counter
-  PSI<dim> end(NULL);
+  PSI<dim,realT> end(NULL);
   end.counter=batchRuns;
-  batch_extra_polynomials<dim> *F = new batch_extra_polynomials<dim>(&(*it));
+  batch_extra_polynomials<dim,realT> *F = new batch_extra_polynomials<dim,realT>(&(*it));
 
 
-  typedef multiRootSolver<complex<double>,dim> MRS;
-  typedef extraSolver<MRS> extraMRS;
-  typedef batchSolver<extraMRS, PSI<dim> > batchExtraMRS;
+  typedef multiRootSolver<root_solver::complex<realT>,dim> MRS;
+  typedef extraSolver<MRS,realT> extraMRS;
+  typedef batchSolver<extraMRS, PSI<dim,realT> > batchExtraMRS;
 
   batchExtraMRS::run(nThreads,  F, it, end, outFileName + "-MRS","#Solutions of some random multi-dimensional polynomial equations\n", epsilon);
 
@@ -145,8 +147,8 @@ int main(int args, char *arg[]){
 
   cout <<endl << __FILE__ << " : Starting Single Root Solver Batch Test."<<endl<<endl;
 
-  typedef singleRootSolver<complex<double> > SRS;
-  typedef extraSolver<SRS> extraSRS;
+  typedef singleRootSolver<realT > SRS;
+  typedef extraSolver<SRS,realT> extraSRS;
   typedef batchSolver<extraSRS, PSI<1> > batchExtraSRS;
 
 
@@ -156,7 +158,7 @@ int main(int args, char *arg[]){
   itOne.counter=0;//reset counter
   PSI<1> endOne(NULL);
   endOne.counter=batchRuns;
-  batch_extra_polynomial *FOne = new batch_extra_polynomial(&(*itOne));
+  batch_extra_polynomial<realT> *FOne = new batch_extra_polynomial<realT>(&(*itOne));
 
 
   batchExtraSRS::run(nThreads, FOne, itOne, endOne, outFileName + "-SRS","#Solutions of some random polynomial equation\n", epsilon);

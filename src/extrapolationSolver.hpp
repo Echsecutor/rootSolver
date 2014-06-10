@@ -48,7 +48,6 @@
 
 #include "preProDebugFlags.h"
 
-
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -57,17 +56,6 @@ using namespace std;
 #include "rootSolver.hpp"
 #include "extrapolationData.hpp"
 
-
-/// if you want complex random shifts on top of the extrapolation, use something like
-/// #ifndef COMPLEX_I
-/// #define COMPLEX_I
-/// static complex<double> I(0.0,1.0);
-/// #endif
-/// BEFORE including this header
-
-#ifndef COMPLEX_I
-static double I(1.0);
-#endif
 
 //------------------------------------------------------------------------------------------
 // Declarations:
@@ -82,31 +70,31 @@ namespace root_solver{
   /// extra_functions interface
   /// only one dimensional extrapolation is (currently) implemented,
   /// hence the type of \f$p\f$ is fixed to double
-  template <typename rootSolverT>
+  template <typename rootSolverT, typename parameterT>
   class extra_functions : public virtual rootSolverT::functions_type{
   public:
 
-    virtual double get_extra_parameter()=0;
-    virtual void set_extra_parameter(double p)=0;
+    virtual parameterT get_extra_parameter()=0;
+    virtual void set_extra_parameter(parameterT p)=0;
 
-    virtual double get_initial()=0;
-    virtual double get_final()=0;
+    virtual parameterT get_initial()=0;
+    virtual parameterT get_final()=0;
 
-    virtual double get_max_change()=0;
+    virtual parameterT get_max_change()=0;
 
 
-    virtual double get_direction(){ //< unlikely to be overwritten
+    virtual parameterT get_direction(){ //< unlikely to be overwritten
       if (get_final() < get_initial())
         return -1.0;
       return 1.0;
     }
 
     // overwrite these if you want something more sophisticated. ;)
-    virtual double get_min_change(){
+    virtual parameterT get_min_change(){
       return get_max_change() / pow(2,20);
     }
 
-    virtual double get_initial_change(){
+    virtual parameterT get_initial_change(){
       return get_min_change() * pow(2,10);
     }
 
@@ -123,37 +111,44 @@ namespace root_solver{
    * numericalT should be the same as the numerical type of the underlying rootSolver (e.g. complex<double>) and dataDim should be the dimension of value_type. so extraSolver<multiRootSolver<complex<double >, dim >, dim>
    *
    */
-  template <typename rootSolverT>
+  template <typename rootSolverT, typename parameterT>
   class extraSolver : public virtual rootSolverT{
+  public:
+    //import typenames
+    typedef rootSolverT root_solver_type;
+    typedef typename root_solver_type::real_type real_type;
+    typedef typename root_solver_type::scalar_type scalar_type;
+    typedef typename root_solver_type::value_type value_type;
+    typedef typename root_solver_type::derivative_type derivative_type;
 
   protected:
 
     default_random_engine* gen;
 
-    extra_functions<rootSolverT>* calc;
+    extra_functions<rootSolverT, parameterT>* calc;
 
-    double dP;
+    parameterT dP;
 
     bool randomiseExtrapolation;
 
-    typedef extrapolationData<typename rootSolverT::value_type, typename rootSolverT::numerical_type, rootSolverT::value_dimension> data_type;
+    typedef extrapolationData<value_type, scalar_type, real_type, root_solver_type::value_dimension> data_type;
 
     data_type dat;
 
-    void speedUp(const double steps);
-    bool slowDown(double factor=1.5);
+    void speedUp(const unsigned int steps);
+    bool slowDown(parameterT factor=1.5);
 
 
   public:
 
-    typedef extra_functions<rootSolverT> functions_type;
+    typedef extra_functions<rootSolverT, parameterT> functions_type;
 
     unsigned int usePoints;///< maximal number of points to use for extrapolation
     unsigned int desiredSteps;///< per internal solver run
 
 
     //explicit call to rootSolver constructor needed?
-    extraSolver(functions_type * f_, bool randomise = true, int seed = 42, unsigned int desiredNumberOfSteps=50, unsigned int usePoints_=8) : rootSolver<typename rootSolverT::value_type, typename rootSolverT::derivative_type>(f_), rootSolverT(f_), gen(new default_random_engine (seed)), calc(f_), randomiseExtrapolation(randomise), usePoints(usePoints_), desiredSteps(desiredNumberOfSteps){
+    extraSolver(functions_type * f_, bool randomise = true, int seed = 42, unsigned int desiredNumberOfSteps=50, unsigned int usePoints_=8) : rootSolver<value_type, derivative_type>(f_), rootSolverT(f_), gen(new default_random_engine (seed)), calc(f_), randomiseExtrapolation(randomise), usePoints(usePoints_), desiredSteps(desiredNumberOfSteps){
       dP = f_->get_initial_change();
     }
 
@@ -172,8 +167,8 @@ namespace root_solver{
   /// One "step" of the extrapolation solver actually consists of a full
   /// run of the underlying solver to produce a new data point for the
   /// next extrapolation.
-  template <typename rootSolverT>
-  solver_state extraSolver<rootSolverT>::step(){
+  template <typename rootSolverT, typename parameterT>
+  solver_state extraSolver<rootSolverT,parameterT>::step(){
 
     if(dat.size()==0){
 #if DEBUG>=SPAM
@@ -197,7 +192,7 @@ namespace root_solver{
 #endif
 
       bool goodPoint=false;
-      double randomness=1e-2;
+      real_type randomness=1e-12;
       int tries=0;
       while(!goodPoint){
         tries++;
@@ -205,8 +200,10 @@ namespace root_solver{
         cout << __FILE__ << " : Extrapolating start point." <<endl;
 #endif
         if(this->randomiseExtrapolation){
-          typename rootSolverT::value_type ex = dat.extrapolate(calc->get_extra_parameter(), &randomness);
-          rootSolverT::setStartPoint(ex + randomness * (dat.gaussBlob(gen)+ I*dat.gaussBlob(gen)) );
+          value_type ex = dat.extrapolate(calc->get_extra_parameter(), &randomness);
+	  randomness += 1e-12;
+	  scalar_type I(0,1.0);
+          rootSolverT::setStartPoint(ex + randomness * (dat.gaussBlob(gen) + I * dat.gaussBlob(gen)));
         }else{
           rootSolverT::setStartPoint(dat.extrapolate(calc->get_extra_parameter()));
         }
@@ -240,7 +237,7 @@ namespace root_solver{
     cout << __FILE__ << " : Start solving for parameter " << calc->get_extra_parameter() <<endl;
 #endif
 
-    int step=1;
+    unsigned int step=1;
     while (rootSolverT::step() >= CONTINUE){
 #if DEBUG>=SPAM
       cout << __FILE__ << " : after " << step << " steps, the solver achieved |f| = " << rootSolverT::getAbsF() <<endl;
@@ -291,10 +288,12 @@ namespace root_solver{
 	  this->state=STUCK;
 	  return this->state;
 	}
-#if DEBUG>=WARN
-        cout << __FILE__ << " : Reducing precision Goal!"<<endl;
-#endif
+
 	this->setPrecisionGoal(this->getPrecisionGoal()*10.0);
+
+#if DEBUG>=WARN
+        cout << __FILE__ << " : Reducing precision Goal to " << this->getPrecisionGoal() << " at parameter " << calc->get_extra_parameter() <<endl;
+#endif
 	speedUp(0);
       }
 
@@ -307,8 +306,8 @@ namespace root_solver{
   }
 
 
-  template <typename rootSolverT>
-  void extraSolver<rootSolverT>::speedUp(const double steps){
+  template <typename rootSolverT, typename parameterT>
+  void extraSolver<rootSolverT,parameterT>::speedUp(const unsigned int steps){
     if(steps < desiredSteps/2){
       dP*=2.0;
       if(dP>calc->get_max_change()){
@@ -322,12 +321,14 @@ namespace root_solver{
 #if DEBUG>=SPAM
       cout << __FILE__ << " : Slowdown to dP = " << dP <<endl;
 #endif
+    }else{
+      desiredSteps++;//avoids wasting time with tiny dPs
     }
   }
 
-  template <typename rootSolverT>
-  bool extraSolver<rootSolverT>::slowDown(double factor){
-    double oldDp=dP;
+  template <typename rootSolverT, typename parameterT>
+  bool extraSolver<rootSolverT,parameterT>::slowDown(parameterT factor){
+    parameterT oldDp=dP;
 
     dP /= factor;
 #if DEBUG>=SPAM

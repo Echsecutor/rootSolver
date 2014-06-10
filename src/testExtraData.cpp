@@ -40,23 +40,25 @@ using namespace Eigen;
 /// main ;)
 ///
 int main(int args, char *arg[]){
+  typedef double realT;
+
   cout << "Extrapolation test case" <<endl <<endl;
 
   const int dataDim=5;
-  typedef complex<double> numericalT;
-  typedef Matrix<numericalT,dataDim,1> dataT;
+  typedef root_solver::complex<realT> complexT;
+  typedef Matrix<complexT,dataDim,1> dataT;
 
-  vector<polynomial> P;
+  vector<polynomial<realT> > P;
   P.resize(dataDim);
 
-  extrapolationData<Matrix<numericalT,dataDim,1>, numericalT, dataDim> extra;
+  extrapolationData<Matrix<complexT,dataDim,1>, complexT,realT, dataDim> extra;
 
   cout << "Testing whether the fit is accurate:"<<endl;
 
   cout << "\tpreparing data..."<<endl;
 
-  for(double x=0;x<10;x++){
-    extraDat<dataT> dat;
+  for(realT x=0.0;x<10;x++){
+    extraDat<dataT,realT> dat;
     dat.extra=x;
     dat.dat=shared_ptr<dataT>(new dataT);
     for(int i=0;i<dataDim;i++){
@@ -68,10 +70,10 @@ int main(int args, char *arg[]){
 
   cout << "\textrapolating..."<<endl;
 
-  double to=42;
+  realT to=42;
 
-  Matrix<numericalT,dataDim,1> ext = extra.extrapolate(to);
-  Matrix<numericalT,dataDim,1> exact;
+  Matrix<complexT,dataDim,1> ext = extra.extrapolate(to);
+  Matrix<complexT,dataDim,1> exact;
 
   cout << "\tcalculating exact result..."<<endl;
 

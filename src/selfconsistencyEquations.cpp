@@ -27,6 +27,15 @@
  *
  */
 
+/// change the following to adapt the internal precision
+//typedef long double real_type;
+
+#include <mpreal.h>
+using namespace mpfr;
+typedef mpreal real_type;
+
+
+
 #include "preProDebugFlags.h"
 
 #include <iostream>
@@ -37,42 +46,43 @@
 #include <sstream>
 #include <ctime>
 
-#include<complex>
+
 using namespace std;
 
-#ifndef COMPLEX_I
-#define COMPLEX_I
-static complex<double> I(0.0,1.0);
-#endif
 
 //#include "logger.hpp"
 
 //root finding:
+#include "complex.hpp"
 #include "singleRootSolver.hpp"
 #include "batchSolver.hpp"
 #include "extrapolationSolver.hpp"
+
+using namespace root_solver;
 
 //self consistency equations:
 #include "SCE.hpp"
 
 
 
+
+
 void readFile(const char * confFile,
-              double &bmTarget,
-              double &initialDb,
-              double &epsilon,
-              double &precisionGoal,
+              real_type &bmTarget,
+              real_type &initialDb,
+              real_type &epsilon,
+              real_type &precisionGoal,
               int &desiredNrSteps,
-              double &maxDb,
-	      double &fromOmega,
-	      double &toOmega,
-	      double &DOmega,
+              real_type &maxDb,
+	      real_type &fromOmega,
+	      real_type &toOmega,
+	      real_type &DOmega,
 	      int &NThreads,
 	      bool &onlySaveGoal,
-	      double &minDb,
-	      double &dim,
+	      real_type &minDb,
+	      real_type &dim,
 	      bool &logStep,
-	      double &bsbm
+	      real_type &bsbm
               ){
 
   //  logger::write(string("Reading parameters from ") + string(confFile), STATUS, __FILE__, logger::removePath);
@@ -125,7 +135,7 @@ void readFile(const char * confFile,
       }else if(strcmp(para,"minDb")==0){
         minDb=atof(val);
       }else if(strcmp(para,"dim")==0){
-        dim=(double)atoi(val);
+        dim=(real_type)atoi(val);
       }else if(strcmp(para,"logStep")==0){
         logStep=(bool)atoi(val);
       }
@@ -152,8 +162,6 @@ void help(){
 /// main ;)
 ///
 int main(int args, char *arg[]){
-
-  typedef double real_type;
 
   cout.precision(5);
   cout << std::scientific;
@@ -211,7 +219,6 @@ int main(int args, char *arg[]){
   real_type bmTarget=1e-2;///< will extrapolate from b=0 or from file towards bNuGoal
   real_type Db=1e-8;///< initial b step size, dynamically adapted
   real_type maxDb=1e-3;///< sets a minimal resolution in b 
-
   real_type minDb=1e-10;///< avoid getting stuck
 
   real_type precisionGoal=1e-12;
@@ -268,7 +275,7 @@ int main(int args, char *arg[]){
   list <SCE_parameters<real_type> > params;
   real_type omega=fromOmega;
   while(omega < toOmega){
-    params.push_back(SCE_parameters<real_type>(dim,epsilon + I * omega));
+    params.push_back(SCE_parameters<real_type>(dim, SCE_parameters<real_type>::complex_type(epsilon, omega)));
 
     omega += DOmega;
 
@@ -277,7 +284,7 @@ int main(int args, char *arg[]){
     }
 
   }
-  params.push_back(SCE_parameters<real_type>(dim,epsilon + I * toOmega));
+  params.push_back(SCE_parameters<real_type>(dim, SCE_parameters<real_type>::complex_type(epsilon,toOmega)));
 
 #if DEBUG >= STATUS
   cout << __FILE__ << " : I will work on " << params.size() << " parameter sets"<<endl;
@@ -290,7 +297,7 @@ int main(int args, char *arg[]){
   cout << __FILE__ << " : Starting solver..."<<endl;
 #endif
 
-  batchSolver<extraSolver<singleRootSolver<complex<real_type> > >, list<SCE_parameters<real_type> >::iterator>::run(NThreads, F, params.begin(), params.end(), outFilePrefix, string("#real(dBM)\timag(dBM)\t") + SCE_parameters<real_type>::getFormat() + "\n", precisionGoal, !onlySaveGoal);
+  batchSolver<extraSolver<singleRootSolver<real_type >, real_type>, list<SCE_parameters<real_type> >::iterator>::run(NThreads, F, params.begin(), params.end(), outFilePrefix, string("#real(dBM)\timag(dBM)\t") + SCE_parameters<real_type>::getFormat() + string("\n"), precisionGoal, !onlySaveGoal);
 
 
   cout << endl<< __FILE__ << " : SCE SOLVER FINISHED"<<endl<<endl;

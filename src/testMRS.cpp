@@ -60,9 +60,11 @@ void help(){
 ///
 int main(int args, char *arg[]){
 
+  typedef double realT;
+
   const int dim=3;
 
-  double epsilon=1e-8;
+  realT epsilon=1e-8;
 
   int seed=42;
   int maxTotalDegree=9;
@@ -93,12 +95,12 @@ int main(int args, char *arg[]){
   cout << __FILE__ << " : Seeding RNG with seed="<<seed<<endl;
   srand(seed);
 
-  polyParams* para = new polyParams();
+  polyParams<realT>* para = new polyParams<realT>();
   para->maxDegree = maxTotalDegree;
-  polynomials<dim> *F;
-  F = new polynomials<dim>(para);
+  polynomials<dim,realT> *F;
+  F = new polynomials<dim,realT>(para);
   F->randomiseTestcase();
-  multiRootSolver<complex<double>,dim> MRS(F);
+  multiRootSolver<root_solver::complex<realT>,dim> MRS(F);
   MRS.setStartPoint(F->guessStartPoint());
 
   int step=1;

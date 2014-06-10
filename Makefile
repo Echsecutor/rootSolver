@@ -35,10 +35,15 @@ export TESTCASES = $(ROOTDIR)/test-in
 
 export CC = g++
 
-# notice that "eigen3/..." need to be included
-export CFLAGS = -Wall -Werror -ansi -pedantic -std=c++0x -pthread -Wfatal-errors
+# notice that "eigen3/..." and mpreal.h need to be included
+export LOCALINCLUDES = -I$(HOME)/include
+export CFLAGS = -Wall -Werror -ansi -pedantic -std=c++0x -pthread -Wfatal-errors $(LOCALINCLUDES)
 
-export LDFLAGS =
+
+MPREALLIBS=-lgmpxx -lgmp -lmpfr
+
+export LDFLAGS = $(MPREALLIBS)
+
 
 export PREFLAGS = -D MULTITHREADED=0 -D DEBUG=11
 
@@ -46,7 +51,7 @@ VPATH = $(SRCDIR):$(TESTDIR)
 
 constructionSite: clean selfconsistencyEquations.out
 
-all: folders testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out selfconsistencyEquations.out
+all: folders testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out selfconsistencyEquations.out derivativeVerification.out
 	@-mv *.dat $(TESTDIR) 2>/dev/null
 	@echo 
 	@echo "[OK]		All tests Passed! :D"
@@ -55,12 +60,11 @@ all: folders testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSo
 
 #production:
 SCE: selfconsistencyEquations.cpp
-	$(CC) -D MULTITHREADED=1 -D DEBUG=5 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
+	$(CC) -DMULTITHREADED=1 -DDEBUG=3 -O2 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
 
 folders:
 	@-mkdir $(BINDIR)
 	@-mkdir $(TESTDIR)
-
 
 # Special case: also test the single threaded version.
 $(BINDIR)/testBatch: testBatchSolver.cpp

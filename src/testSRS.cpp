@@ -33,6 +33,7 @@
 
 #include <cstdlib>//rand
 
+
 using namespace std;
 
 //actual root finding:
@@ -41,6 +42,7 @@ using namespace std;
 //trial function
 #include "polynomials.hpp"
 
+#include "complex.hpp"
 using namespace root_solver;
 
 
@@ -63,7 +65,9 @@ void help(){
 ///
 int main(int args, char *arg[]){
 
-  double epsilon=1e-10;
+  typedef double realT;
+
+  realT epsilon=1e-10;
 
   int seed=42;
   int maxTotalDegree=42;
@@ -96,12 +100,12 @@ int main(int args, char *arg[]){
   srand(seed);
 
 
-  polyParams* para = new polyParams();
+  polyParams<realT>* para = new polyParams<realT>();
   para->maxDegree = maxTotalDegree;
-  polynomial * F = new polynomial(para);
+  polynomial<realT> * F = new polynomial<realT>(para);
   F->randomiseTestcase();
 
-  singleRootSolver<complex<double>> SRS(F);
+  singleRootSolver<realT> SRS(F);
 
   SRS.setStartPoint(F->guessStartPoint());
 
@@ -129,9 +133,9 @@ int main(int args, char *arg[]){
   cout << __FILE__ << " : The solver used " << F->getFunctionCallsCounter() << " function calls and computed the jacobian " << F->getJacobianCallsCounter() << " times."<<endl;
 
 
-  // complex<double> z=SRS.getLastPoint();
+  // complex<realT> z=SRS.getLastPoint();
   // int closest=0;
-  // double dist =abs(z-zeros[0]);
+  // realT dist =abs(z-zeros[0]);
 
   // for(int i=0;i<degree;i++){
   //   if(abs(zeros[i]-z)<dist){

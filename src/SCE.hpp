@@ -38,29 +38,21 @@
 
 
 
-
 #ifndef SCE_HPP
 #define SCE_HPP
 
 #include <ostream>
-
-#include <complex>
-#include<cmath>//M_PI
+#include <stdexcept>
 #include <list>
 #include <limits>
 using namespace std;
-
-
-#ifndef COMPLEX_I
-#define COMPLEX_I
-static complex<double> I(0.0,1.0);
-#endif
 
 
 #include "singleRootSolver.hpp"
 #include "batchSolver.hpp"
 #include "extrapolationSolver.hpp"
 
+#include "complex.hpp"
 using namespace root_solver;
 
 
@@ -73,12 +65,14 @@ template<typename realT>
 class SCE_parameters{
 public:
 
+  typedef root_solver::complex<realT> complex_type;
+
   realT dim;
   realT bs, bm, cutOff;
-  complex<realT> z,g;
+  root_solver::complex<realT> z,g;
 
   SCE_parameters():dim(0),bs(0),bm(0),cutOff(0),z(0.0),g(0.0){}
-  SCE_parameters(realT dim_,complex<realT> z_):dim(dim_),bs(0),bm(0),cutOff(0),z(z_),g(0.0){}
+  SCE_parameters(realT dim_,root_solver::complex<realT> z_):dim(dim_),bs(0),bm(0),cutOff(0),z(z_),g(0.0){}
 
   SCE_parameters(const SCE_parameters<realT>& p2):dim(p2.dim),bs(p2.bs),bm(p2.bm),cutOff(p2.cutOff),z(p2.z),g(p2.g){}
 
@@ -108,16 +102,16 @@ public:
 
 //-----------------------------------------------------------------------------------
 /*doesnt work with g++ 4.6.3 ... o0
-template<typename realT> using eSRS = extraSolver<singleRootSolver<complex<realT> > >;
+  template<typename realT> using eSRS = extraSolver<singleRootSolver<complex<realT> > >;
 
-template<typename realT> using beSRS = batchSolver<extraSolver<singleRootSolver<complex<realT> > >, list<SCE_parameters<realT> >::iterator>;
+  template<typename realT> using beSRS = batchSolver<extraSolver<singleRootSolver<complex<realT> > >, list<SCE_parameters<realT> >::iterator>;
 */
 
 template<typename realT>
-class SCE : public virtual batch_functions<extraSolver<singleRootSolver<complex<realT> > >, typename list<SCE_parameters<realT> >::iterator > {
+class SCE : public virtual batch_functions<extraSolver<singleRootSolver<realT>, realT >, typename list<SCE_parameters<realT> >::iterator > {
 private:
 
-  typedef batch_functions<extraSolver<singleRootSolver<complex<realT> > >, typename list<SCE_parameters<realT> >::iterator > parent;
+  typedef batch_functions<extraSolver<singleRootSolver<root_solver::complex<realT> >, realT >, typename list<SCE_parameters<realT> >::iterator > parent;
 
   //init flags
   bool dBMSet;
@@ -130,15 +124,17 @@ private:
   realT target_bm, max_change, min_change, initial_change;
 
   //temporaries read at changePoint:
-  complex<realT> BS,dBS,BM,dBM,a,b,Int;
+  root_solver::complex<realT> BS,dBS,BM,dBM,a,b,Int;
 
 
   void computeInt();
 
-  complex<realT> arctanOverX(complex<realT> x);
+  root_solver::complex<realT> arctanOverX(root_solver::complex<realT> x);
 
 public:
 
+  static const root_solver::complex<realT> one;
+  static const root_solver::complex<realT> two;
 
 
   SCE(realT bs_over_bm, realT final_bm, realT max_d_bm, realT min_d_bm, realT ini_d_bm):dBMSet(false),p(0), bs_bm(bs_over_bm),target_bm(final_bm),max_change(max_d_bm),min_change(min_d_bm),initial_change(ini_d_bm){}
@@ -147,7 +143,6 @@ public:
   //Overrides from
   //batch:
   virtual void setParameters(typename SCE<realT>::iterator It);
-  //  using parent::setParameters;
 
 
   //extra:
@@ -171,6 +166,12 @@ public:
 
 };
 
+//stupidly the implicit double to complex<realT> cast doesn't work due
+//to ambiguities
+template<typename realT>
+const root_solver::complex<realT> SCE<realT>::one = root_solver::complex<realT>(1.0);
+template<typename realT>
+const root_solver::complex<realT> SCE<realT>::two = root_solver::complex<realT>(2.0);
 
 
 
@@ -183,7 +184,7 @@ template<typename realT>
 void SCE<realT>::setParameters(typename SCE<realT>::iterator It){
   p = &(*It);
 
-  n = floor((p->dim -1.0)/2.0);
+  n = floor((p->dim - 1.0) / 2.0);
 
   //only odd d implemented yet!
   if(2.0 * n + 1.0 != p->dim){
@@ -246,44 +247,51 @@ void SCE<realT>::computeInt(){
   Int=0.0;
 
   if(p->dim==1.0){
-    complex<realT> D = - 2.0 * b;
-    complex<realT> C = a + 2.0 * p->dim * b;
-    complex<realT> rt= sqrt(C*C - D*D);
+    root_solver::complex<realT> D = - two * b;
+    root_solver::complex<realT> C = a + two * p->dim * b;
+    root_solver::complex<realT> rt= sqrt(C*C - D*D);
 
 #if DEBUG >= SPAM
     cout << __FILE__ << " : Using exact 1d integral, C=" << C << ", D=" << D <<endl;
 #endif
 
 
-    Int = 1.0 / rt;
+    Int = one / rt;
     if(abs(C + rt) < abs(D)){//correct branch of sqrt
-      Int*=-1.0;
+      Int*=-one;
     }
 
-  }else{
+    return;
 
-    // This implements the Debeye approximation of the integral in question. In d=1 we would have:
-    // \f[
-    //   Int  = \int_0^\Omega \frac{d k}{a+b k^2} = \frac{1}{a}\sqrt{\frac{a}{b}}\arctan\left(\sqrt{\frac{b}{a}}\Omega\right)
-    // \f]
-    // Using the same sqrt twice cancels sign ambiguities. See paper for details about higher d.
+  }
+
+
+
+  // This implements the Debeye approximation of the integral in question. In d=1 we would have:
+  // \f[
+  //   Int  = \int_0^\Omega \frac{d k}{a+b k^2} = \frac{1}{a}\sqrt{\frac{a}{b}}\arctan\left(\sqrt{\frac{b}{a}}\Omega\right)
+  // \f]
+  // Using the same sqrt twice cancels sign ambiguities. See paper for details about higher d.
 #if DEBUG >= DETAIL
-    cout << __FILE__ << " : Using Debeye approximation for integrals in dimension " << p->dim <<endl;
+  cout << __FILE__ << " : Using Debeye approximation for integrals in dimension " << p->dim <<endl;
 #endif
 
 
-    complex<realT> rt= sqrt(b/a);
-    
-    Int += arctanOverX(rt * p->cutOff);
+  root_solver::complex<realT> rt= sqrt(b/a);
 
+  Int += arctanOverX(rt * p->cutOff);
 
-    for(int k=0;k<n;k++){
-      Int -= pow(- b / a * p->cutOff * p->cutOff , k) / (2.0 * (realT) k + 1.0);
-    }
+  root_solver::complex<realT> pow(1.0);
+  root_solver::complex<realT> powAB(1.0);
 
-    Int *= p->cutOff/a * pow(- a / b, (int)n);
-
+  for(int k=0;k<n;k++){
+    Int -= pow / (two * (realT) k + one);
+    pow *= - b / a * p->cutOff * p->cutOff;
+    powAB *=- a / b;
   }
+
+  Int *= p->cutOff/a * powAB;
+
 
 }
 
@@ -291,15 +299,15 @@ void SCE<realT>::computeInt(){
 template<typename realT>
 void SCE<realT>::changePoint(const typename SCE<realT>::value_type x){
   dBM = x;
-  BM = 1.0 + p->bm * dBM;
+  BM = one + p->bm * dBM;
 
-  p->g = BM * (dBM + 1.0) / p->z;
+  p->g = BM * (dBM + one) / p->z;
 
   dBS = - p->g * BM * (BM + p->bm) / (p->z + p->bs * p->g * BM * (BM + p->bm));
-  BS = 1.0 + p->bs * dBS;
+  BS = one + p->bs * dBS;
 
-  a = p->g * p->z + p->bs * dBS *(1.0 - p->dim);
-  b = - BS * dBS / 2.0 / p->dim;
+  a = p->g * p->z + p->bs * dBS *(one - p->dim);
+  b = - BS * dBS / two / p->dim;
 
   computeInt();
 
@@ -307,12 +315,11 @@ void SCE<realT>::changePoint(const typename SCE<realT>::value_type x){
 }
 
 template<typename realT>
-complex<realT> SCE<realT>::arctanOverX(complex<realT> x){
-  if (abs(x) < 0.001){
-    return 1.0 - x * x / 3.0;//at abs(x)=0.001 the relative error of this approximation is about 2e-13
+root_solver::complex<realT> SCE<realT>::arctanOverX(root_solver::complex<realT> x){
+  if (abs(x) < 1e-6){
+    return one - x * x / (two+ one);//at abs(x)=0.001 the relative error of this approximation is about 2e-13
   }
   return atan(x) / x;
-
 }
 
 
@@ -322,49 +329,75 @@ typename SCE<realT>::value_type SCE<realT>::calcF(){
   if(!dBMSet)
     changePoint(dBM);//make sure internals are up to date
 
-  return BS * Int - 1.0;
+
+  //  return BM;
+  //  return p->g;
+  //  return dBS;
+  //return a + two * p->dim * b;//C
+  // return - two * b; //D
+  //return Int;
+
+  return BS * Int - one;
   //todo: idea: use log(BS*Int) instead???
+
 }
 
 
 template<typename realT>
 typename SCE<realT>::derivative_type SCE<realT>::calcJ(){
 
-  complex<realT> Dg = (1.0 + 2.0 * p->bm * dBM + p->bm) / p->z;
+  
+  root_solver::complex<realT> Dg = (one + two * p->bm * dBM + p->bm) / p->z;
 
-  complex<realT> DBM = p->bm;
-  complex<realT> DdBS= BS * dBS * Dg / p->g  + dBS*(1.0 - p->bs * dBS / BM / (BM + p->bm)) * (2.0 * BM + p->bm) / BM / (BM + p->bm) * DBM;
 
-  complex<realT> Da = p->z * Dg + p->bs * DdBS *(1.0 - p->dim);
-  complex<realT> Db = (- p->bs * dBS * DdBS - BS * DdBS) / 2.0 / p->dim;
+  root_solver::complex<realT> DBM = p->bm;
+  //    root_solver::complex<realT> DdBS= BS * dBS * Dg / p->g  + dBS*(one - p->bs * dBS / BM / (BM + p->bm)) * (two * BM + p->bm) / BM / (BM + p->bm) * DBM;//wrong
 
-  complex<realT> DInt=0.0;
+  root_solver::complex<realT> DdBS = - BS * BS / p->z *(BM * (BM + p->bm) * Dg + p->g * (two * BM + p->bm) * DBM);
+
+
+  root_solver::complex<realT> Da = p->z * Dg + p->bs * DdBS *(one - p->dim);
+  root_solver::complex<realT> Db = - (one + two * p->bs * dBS) * DdBS / two / p->dim;
+
+
+  root_solver::complex<realT> DInt(0.0);
 
   if(p->dim == 1.0){
-    complex<realT> D = - 2.0 * b;
-    complex<realT> C = a + 2.0 * p->dim * b;
-    complex<realT> DD = - 2.0 * Db;
-    complex<realT> DC = Da + 2.0 * p->dim * Db;
-
-
+    root_solver::complex<realT> D = - two * b;
+    root_solver::complex<realT> C = a + two * p->dim * b;
+    root_solver::complex<realT> DD = - two * Db;
+    root_solver::complex<realT> DC = Da + two * p->dim * Db;
+    //return DC;
+    //    return DD;
     DInt = Int*Int*Int * (D * DD - C * DC);
 
   }else{
 
-    complex<realT> t = p->cutOff / a / (1.0 + b / a * p->cutOff*p->cutOff);
-    DInt += 0.5 * (t - Int) * (Db / b   - Da / a);
+    root_solver::complex<realT> t = p->cutOff / a / (one + b / a * p->cutOff*p->cutOff);
+    DInt += (t - Int) * (Db / b   - Da / a) / two;
 
 
+    root_solver::complex<realT> pow(1.0);
+    root_solver::complex<realT> powAB(1.0);
     for(int k=1;k<n;k++){
-      DInt -= pow( (- b / a  * p->cutOff * p->cutOff ), k ) / (2.0 * (realT)k + 1.0) * (realT)k * ( Db / b - Da / a) ;
+      pow *= - b / a  * p->cutOff * p->cutOff ;
+      DInt -=  pow / (two * (realT)k + one) * (realT)k * ( Db / b - Da / a) ;
+
+      powAB *= - a / b;
     }
+    powAB *= - a / b;//(-1/b)^n
 
- 
-    DInt *= p->cutOff/a * pow(- a / b, (int)n);
+    DInt *= p->cutOff / a * powAB;
 
-    DInt += Int *((n - 1.0) * Da / a - n * Db / b);
+    DInt += Int *((n - one) * Da / a - n * Db / b);
 
   }
+
+
+  //  return DBM;
+  //  return Dg;
+  //  return DdBS;
+  //  return DInt;
 
   return Int * DdBS * p->bs + BS * DInt;
 
@@ -376,12 +409,12 @@ template<typename realT>
 typename SCE<realT>::value_type SCE<realT>::guessStartPoint(){
 
   a = p->z*p->z;
-  b = 1.0 / 2.0 / p->dim;
+  b = one / two / p->dim;
 
   computeInt();
 
   p->g = Int * p->z;
-  dBM = p->g * p->z -1.0;
+  dBM = p->g * p->z -one;
 
   return dBM;
 

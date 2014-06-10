@@ -48,9 +48,8 @@ using namespace Eigen;
 
 
 
-
-/// this is just (valueT f, double x)
-template <typename dataT>
+/// this is just (valueT f, parameterT x)
+template <typename dataT, typename parameterT>
 class extraDat{
   //  enum { NeedsToAlign = (sizeof(dataT)%16)==0 };
 public:
@@ -58,9 +57,9 @@ public:
   ///  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   shared_ptr<dataT> dat;
-  double extra;
+  parameterT extra;
   extraDat(){}
-  extraDat(const dataT& dat_, const double& extra_):dat(shared_ptr<dataT>(new dataT(dat_))),extra(extra_){}//ZOMFG make_shared, at least in gcc 4.6.3, creates something unaligned internally... wtf...
+  extraDat(const dataT& dat_, const parameterT& extra_):dat(shared_ptr<dataT>(new dataT(dat_))),extra(extra_){}//ZOMFG make_shared, at least in gcc 4.6.3, creates something unaligned internally... wtf...
 };
 
 
@@ -101,9 +100,10 @@ public:
  * [0,\ldots,dataDim-1]\f$ where X[i] should be of numericalT which in
  * turn should be some numerical type such as float, double,
  * complex<double>, etc.
+ * parameterT should be some real type, like double
  *
  * A typical example would be
- * extrapolationData<Matrix<valueT,dataDim,1>, numericalT, dataDim>
+ * extrapolationData<Matrix<valueT,dataDim,1>, numericalT, double, dataDim>
  * but a pointer to an appropriate array of numericalT would also be
  * an acceptable dataT.
  *
@@ -111,8 +111,8 @@ public:
  * extra (de)referencing is performed!
  *
  */
-template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int polynomialDegree=3>
-class extrapolationData : protected list<extraDat<dataT> >{//Eigen alignement... I should check wether the speed gain is worth the effort...
+template <typename dataT, typename numericalT, typename parameterT, unsigned int dataDim, unsigned int polynomialDegree=3>
+class extrapolationData : protected list<extraDat<dataT,parameterT> >{//Eigen alignement... I should check wether the speed gain is worth the effort...
 protected:
 
   //data for the extrapolated polynomial
@@ -130,9 +130,9 @@ protected:
 
 public:
   static const unsigned int degree;
-  typedef extraDat<dataT> value_type;
+  typedef parameterT parameter_type;
+  typedef extraDat<dataT, parameter_type> value_type;
   typedef numericalT numerical_type;
-  typedef extrapolationData<dataT,numericalT,dataDim> own_type;
 
 
   /// produce a random dataT vector with iid gaussian components of mean 0 and std. devaition 1
@@ -140,7 +140,7 @@ public:
   static dataT gaussBlob(default_random_engine*& gen =0, int seed=42);
 
   /// This function fits an order degree polynomial to the stored data
-  dataT extrapolate(double to, double * err=0);
+  dataT extrapolate(parameter_type to, parameter_type * err=0);
 
 
   //The following are all esentially just passing to the corresponding
@@ -150,13 +150,13 @@ public:
   extrapolationData(const extrapolationData&x):list<value_type>(x), extrapolated(false){}
 
   void push_front (const value_type& val){list<value_type>::push_front(val);forget();}
-  void push_front (const dataT& dat, const double& extra){
-    push_front(shared_ptr<extraDat<dataT> >(new extraDat<dataT>(dat,extra)));
+  void push_front (const dataT& dat, const parameter_type& extra){
+    push_front(value_type(dat,extra));
     forget();
   }
   void push_back (const value_type& val){list<value_type>::push_back(val);forget();}
-  void push_back (const dataT& dat, const double& extra){
-    push_back(extraDat<dataT>(dat, extra));
+  void push_back (const dataT& dat, const parameter_type& extra){
+    push_back(value_type(dat, extra));
     forget();
   }
 
@@ -177,16 +177,16 @@ public:
 
 };
 
-template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int polynomialDegree>
-const unsigned int extrapolationData<dataT,numericalT,dataDim,polynomialDegree>::degree = polynomialDegree;
+template <typename dataT, typename numericalT, typename parameterT, unsigned int dataDim, unsigned int polynomialDegree>
+const unsigned int extrapolationData<dataT,numericalT,parameterT,dataDim,polynomialDegree>::degree = polynomialDegree;
 
-template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int degree>
-specialised<dataT, numericalT,dataDim> extrapolationData<dataT,numericalT,dataDim,degree>::accessor;
+template <typename dataT, typename numericalT, typename parameterT, unsigned int dataDim, unsigned int degree>
+specialised<dataT, numericalT,dataDim> extrapolationData<dataT,numericalT,parameterT,dataDim,degree>::accessor;
 
 //----------------------------------------------------------------------
 
-template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int degree>
-void extrapolationData<dataT,numericalT,dataDim,degree>::forget(){
+template <typename dataT, typename numericalT, typename parameterT, unsigned int dataDim, unsigned int degree>
+void extrapolationData<dataT,numericalT,parameterT,dataDim,degree>::forget(){
 #if DEBUG > SPAM
   cout <<  __FILE__ << " : Old extrapolation invalid."<<endl;
 #endif
@@ -196,8 +196,8 @@ void extrapolationData<dataT,numericalT,dataDim,degree>::forget(){
 
 
 /// if desired, *err will be set to the deviation of back().dat from the extrapolation to back().extra
-template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int degree>
-dataT extrapolationData<dataT,numericalT,dataDim,degree>::extrapolate(double to, double * err){
+template <typename dataT, typename numericalT,typename parameterT, unsigned int dataDim, unsigned int degree>
+dataT extrapolationData<dataT,numericalT,parameterT,dataDim,degree>::extrapolate(parameter_type to, parameter_type * err){
 
 #if DEBUG >= SPAM
   cout <<  __FILE__ << " : Extrapolation to " << to << " requested."<<endl;
@@ -230,16 +230,16 @@ dataT extrapolationData<dataT,numericalT,dataDim,degree>::extrapolate(double to,
   typename vector<shared_ptr<dataT > >::iterator it = coeffs.begin();
 
   dataT re = *(*it);
-  double pow = to;
+  parameter_type pow = to;
 
   dataT errEst = *(*it);
-  double powErr = last.extra;
+  parameter_type powErr = last.extra;
 
   while(++it != coeffs.end()){
-    re += *(*it) * pow;
+    re += *(*it) * (numericalT)pow;
     pow*=to;
     if(err !=0){
-      errEst += *(*it) * powErr;
+      errEst += *(*it) * (numericalT)powErr;
       powErr*=last.extra;
     }
   }
@@ -263,8 +263,8 @@ dataT extrapolationData<dataT,numericalT,dataDim,degree>::extrapolate(double to,
 //-------------------------------------------------------------------------------------------
 
 
-template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int degree>
-dataT extrapolationData<dataT,numericalT,dataDim,degree>::gaussBlob(default_random_engine*& gen,int seed){
+template <typename dataT, typename numericalT, typename parameterT, unsigned int dataDim, unsigned int degree>
+dataT extrapolationData<dataT,numericalT,parameterT,dataDim,degree>::gaussBlob(default_random_engine*& gen,int seed){
 
   if(gen ==0){
 #if DEBUG>=WARN
@@ -288,8 +288,8 @@ dataT extrapolationData<dataT,numericalT,dataDim,degree>::gaussBlob(default_rand
 
 //-------------------------------------------------------------------------------------------
 
-template <typename dataT, typename numericalT, unsigned int dataDim, unsigned int degree>
-bool extrapolationData<dataT,numericalT,dataDim,degree>::calculateCoefficients(){
+template <typename dataT, typename numericalT, typename parameterT,unsigned int dataDim, unsigned int degree>
+bool extrapolationData<dataT,numericalT,parameterT,dataDim,degree>::calculateCoefficients(){
 
   extrapolated=false;
 #if DEBUG >= SPAM
@@ -356,7 +356,7 @@ bool extrapolationData<dataT,numericalT,dataDim,degree>::calculateCoefficients()
     for(unsigned int n=0;n<=degree;n++){
       target(n)=0;
       for(typename list<value_type>::iterator it = this->begin(); it != this->end();it++){
-        target(n) += accessor.access((*it).dat,k) * pow((*it).extra, n);
+        target(n) += accessor.access((*it).dat,k) * (numericalT)pow((*it).extra, n);//todo:caution... pow might loose precision...
       }
     }
 
@@ -374,7 +374,7 @@ bool extrapolationData<dataT,numericalT,dataDim,degree>::calculateCoefficients()
 
     if(! target.isApprox(powers * coefficient)){
 #if DEBUG>=ERR
-      cerr << __FILE__ << " : " << "Extrapolation failed."<<endl;
+      cout << __FILE__ << " : " << "Extrapolation failed."<<endl;
 #endif
       return false;
     }

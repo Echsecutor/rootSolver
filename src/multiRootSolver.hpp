@@ -51,6 +51,7 @@ using namespace std;
 using namespace Eigen;
 
 #include "rootSolver.hpp"
+#include "complex.hpp"
 
 namespace root_solver{
 
@@ -70,11 +71,13 @@ namespace root_solver{
    */
 
 
-  template <typename T,  int dim>
-  class MRS_functions : public virtual functions<Matrix<T, dim, 1>, Matrix<T, dim, dim> >{
+  template <typename scalarT,  int dim>
+  class MRS_functions : public virtual functions<Matrix<scalarT, dim, 1>, Matrix<scalarT, dim, dim> >{
   public:
-    virtual Matrix<T, dim, 1> guessStartPoint(){
-      Matrix<T, dim, 1> re;
+    typedef functions<Matrix<scalarT, dim, 1>, Matrix<scalarT, dim, dim> > functions_type;
+
+    virtual typename functions_type::value_type guessStartPoint(){
+      typename functions_type::value_type re;
       for (int i=0;i<dim;i++){
         re(i) = 0;
       }
@@ -130,14 +133,23 @@ namespace root_solver{
    * MRS(MRS_function new yourFunction(),MRS_mode preferredMode=MRS_GRADIENT, bool onlyUsePrefferedMode=false) or later
    * MRS.setOnlyUsePrefferedMode(bool YN). Unless this flag is true, the solver will fallback to dogleg if one of the other two gets stuck.
    *
+   *
+   * If you want to use this for real numbers (better implementations are available and) you need to specify scalarT=realT
    */
-  template <typename T,  int dim>
-  class multiRootSolver : public virtual rootSolver<Matrix<T, dim, 1>, Matrix<T, dim, dim> >{
-  protected:
+  template <typename scalarT, int dim>
+  class multiRootSolver : public virtual rootSolver<Matrix<scalarT, dim, 1>, Matrix<scalarT, dim, dim> >{
+  public:
+    //import typenames
+    typedef rootSolver<Matrix<scalarT, dim, 1>, Matrix<scalarT, dim, dim> > root_solver_type;
+    typedef typename root_solver_type::real_type real_type;
+    typedef typename root_solver_type::scalar_type scalar_type;
+    typedef typename root_solver_type::value_type value_type;
 
+  protected:
+    
     bool calculatedJ;
-    double absLastStep;
-    double lastAbsValueChange;
+    real_type absLastStep;
+    real_type lastAbsValueChange;
 
     void update();
 
@@ -147,8 +159,8 @@ namespace root_solver{
     bool onlyUsePreferredMode;
 
     //temporary variables for the actual algorithms
-    Matrix<T, dim, 1> NewtonPoint;
-    Matrix<T, dim, 1> NewtonF;
+    value_type NewtonPoint;
+    value_type NewtonF;
     void calcNewtonStep();
 
     /*
@@ -159,36 +171,37 @@ namespace root_solver{
       void simplexSearch();
     */
 
-    void backTrack(Matrix<T, dim, 1> farPoint, Matrix<T, dim, 1> farValue);
+    void backTrack(value_type farPoint,value_type farValue);
 
 
   public:
 
-    typedef MRS_functions<T,dim> functions_type;
-    typedef T numerical_type;
+    typedef MRS_functions<scalar_type,dim> functions_type;
     static const int value_dimension = dim;
 
 
-    multiRootSolver(functions_type * f_, MRS_mode preferredMode_=MRS_NEWTON, bool onlyUsePreferredMode_=true) : rootSolver<Matrix<T, dim, 1>, Matrix<T, dim, dim>>(f_),calculatedJ(false),absLastStep(0),lastAbsValueChange(0),currentMode(preferredMode_),preferredMode(preferredMode_),onlyUsePreferredMode(onlyUsePreferredMode_){}
+    multiRootSolver(functions_type * f_, MRS_mode preferredMode_=MRS_NEWTON, bool onlyUsePreferredMode_=true) : root_solver_type(f_),calculatedJ(false),absLastStep(0),lastAbsValueChange(0),currentMode(preferredMode_),preferredMode(preferredMode_),onlyUsePreferredMode(onlyUsePreferredMode_){}
     ~multiRootSolver(){}
 
-    double getAbsLastStep(){return absLastStep;}
-    double getLastAbsValueChange(){return lastAbsValueChange;}
+    real_type getAbsLastStep(){return absLastStep;}
+    real_type getLastAbsValueChange(){return lastAbsValueChange;}
 
     MRS_mode getPrefferedMode(){return preferredMode;}
     void setPrefferedMode(MRS_mode m){preferredMode=m;}
 
 
     /// Setting a new starting point will reset the solver
-    void setStartPoint(Matrix<T, dim, 1> z_);
+    void setStartPoint(value_type z_);
+
+    using root_solver_type::step;
 
     /// This is the main part of the solver, actually computing a step towards the solution.
     /// Should be run while (step() >= CONTINUE)
     solver_state step();
 
     //no clue why this is not automatic.....
-    virtual solver_state step(double epsF){return rootSolver<Matrix<T, dim, 1>, Matrix<T, dim, dim> >::step(epsF);}
-    virtual solver_state step(double epsF, double epsZ){return rootSolver<Matrix<T, dim, 1>, Matrix<T, dim, dim> >::step(epsF,epsZ);}
+    // virtual solver_state step(double epsF){return rootSolver<Matrix<T, dim, 1>, Matrix<T, dim, dim> >::step(epsF);}
+    // virtual solver_state step(double epsF, double epsZ){return rootSolver<Matrix<T, dim, 1>, Matrix<T, dim, dim> >::step(epsF,epsZ);}
 
 
   };
@@ -197,8 +210,8 @@ namespace root_solver{
   //------------------------------------------------------------------------------------------------------
 
 
-  template <typename T,  int dim>
-  void multiRootSolver<T,dim>::update(){
+  template <typename scalarT,  int dim>
+  void multiRootSolver<scalarT,dim>::update(){
     this->calc->changePoint(this->z);
     this->f = this->calc->calcF();
     this->absF = this->f.norm();
@@ -211,16 +224,16 @@ namespace root_solver{
   }
 
 
-  template <typename T,  int dim>
-  void multiRootSolver<T,dim>::setStartPoint(Matrix<T, dim, 1> z_){
+  template <typename scalarT,  int dim>
+  void multiRootSolver<scalarT,dim>::setStartPoint(value_type z_){
     this->z=z_;
     this->calculatedJ=false;
     this->state=INIT;
     update();
   }
 
-  template <typename T,  int dim>
-  solver_state multiRootSolver<T,dim>::step(){
+  template <typename scalarT,  int dim>
+  solver_state multiRootSolver<scalarT,dim>::step(){
 
     if(this->absF < this->getPrecisionGoal()){
       this->state=SUCCESS;
@@ -285,8 +298,8 @@ namespace root_solver{
   //------------------------------------
 
   /// NewtonStep \f$ = -J^{-1}f \f$ using Eigen
-  template <typename T,  int dim>
-  void multiRootSolver<T,dim>::calcNewtonStep(){
+  template <typename scalarT,  int dim>
+  void multiRootSolver<scalarT,dim>::calcNewtonStep(){
     if(!calculatedJ){
       this->J=this->calc->calcJ();
       calculatedJ=true;
@@ -301,15 +314,15 @@ namespace root_solver{
   }
 
   /// assuming that calc->changePoint(farPoint) was performed
-  template <typename T,  int dim>
-  void multiRootSolver<T,dim>::backTrack( Matrix<T, dim, 1> farPoint, Matrix<T, dim, 1> farValue){
-    double stepSize=(this->z-farPoint).norm();
+  template <typename scalarT,  int dim>
+  void multiRootSolver<scalarT,dim>::backTrack(value_type farPoint, value_type farValue){
+    real_type stepSize=(this->z-farPoint).norm();
 #if DEBUG>=STATUS
     cout << __FILE__ << " : back tracking"<<endl;
 #endif
 
-    double farAbsF = farValue.norm();
-    double change = this->absF - farAbsF;
+    real_type farAbsF = farValue.norm();
+    real_type change = this->absF - farAbsF;
 
     if(change!=change){//nan
       throw runtime_error(string(__FILE__) + string(" :  Error in function evaluation!"));
@@ -319,11 +332,11 @@ namespace root_solver{
     cout << __FILE__ << " : step size " << stepSize << " leads to absF improvement: " <<change <<endl;
 #endif
 
-    this->state = checkStatus(farAbsF, this->absF, stepSize);
+    this->state = this->checkStatus(farAbsF, this->absF, stepSize);
 
     // simple backtracking
     if(this->state==REJECT){
-      Matrix<T, dim, 1> newFarPoint=0.5*(farPoint + this->z);
+      value_type newFarPoint = 0.5 * (farPoint + this->z);
       this->calc->changePoint(newFarPoint);
       backTrack(newFarPoint, this->calc->calcF());
     }else{

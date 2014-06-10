@@ -14,7 +14,7 @@ private:
 public:
   myAbs(dataT Y):X(Y){}
 
-  operator double(){
+  operator typename Eigen::NumTraits<dataT>::Real(){
     return X.norm();
   }
 };
@@ -26,7 +26,7 @@ private:
 public:
   myAbs(dataT Y):X(Y){}
 
-  operator double(){
+  operator typename Eigen::NumTraits<dataT>::Real(){
     return abs(X);
   }
 };

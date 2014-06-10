@@ -74,6 +74,8 @@ void help(){
 ///
 int main(int args, char *arg[]){
 
+  typedef double realT;
+
   const int dim=3;
 
   double epsilon=1e-8;
@@ -129,16 +131,16 @@ int main(int args, char *arg[]){
   cout <<endl << "Starting Multi Root Solver Batch Test."<<endl<<endl;
 
 
-  polyParams* para = new polyParams();
+  polyParams<realT>* para = new polyParams<realT>();
   para->maxDegree = maxTotalDegree;
-  PSI<dim> it(para);
+  PSI<dim,realT> it(para);
   ++it;//randomise
   it.counter=0;//reset counter
-  PSI<dim> end(NULL);
+  PSI<dim,realT> end(NULL);
   end.counter=batchRuns;
-  batch_polynomials<dim> *F = new batch_polynomials<dim>(&(*it));
+  batch_polynomials<dim,realT> *F = new batch_polynomials<dim,realT>(&(*it));
 
-  typedef batchSolver<multiRootSolver<complex<double>,dim>, PSI<dim>> batchMRS;
+  typedef batchSolver<multiRootSolver<root_solver::complex<realT>,dim >, PSI<dim,realT> > batchMRS;
 
   batchMRS::run(nThreads, F, it, end, outFileName + "-MRS", "#Solutions of some random multi-dimensional polynomial equations\n", epsilon);
 
@@ -148,14 +150,14 @@ int main(int args, char *arg[]){
   cout <<endl << "Starting Single Root Solver Batch Test."<<endl<<endl;
 
   para->maxDegree = maxTotalDegree;
-  PSI<1> itOne(para);
+  PSI<1,realT> itOne(para);
   ++itOne;//randomise
   itOne.counter=0;//reset counter
-  PSI<1> endOne(NULL);
+  PSI<1,realT> endOne(NULL);
   endOne.counter=batchRuns;
-  batch_polynomial *FOne = new batch_polynomial(&(*itOne));
+  batch_polynomial<realT> *FOne = new batch_polynomial<realT>(&(*itOne));
 
-  typedef batchSolver<singleRootSolver<complex<double>>, PSI<1>> batchSRS;
+  typedef batchSolver<singleRootSolver<realT>, PSI<1,realT> > batchSRS;
 
   batchSRS::run(nThreads, FOne, itOne, endOne, outFileName + "-SRS","#Solutions of some random polynomial equation\n", epsilon);
 

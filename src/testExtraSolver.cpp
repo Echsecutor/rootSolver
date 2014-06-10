@@ -48,10 +48,6 @@ using namespace std;
 using namespace root_solver;
 
 
-typedef singleRootSolver<complex<double> > SRS;
-
-
-
 void help(){
   cout << "\nusage: test [-h] [-r] [-s SEED] [-m MAX_TOTAL_DEGREE] [-p PRECISION]"<<endl;
   cout<<"-h\tthis help\n";
@@ -71,7 +67,11 @@ void help(){
 ///
 int main(int args, char *arg[]){
 
-  double epsilon=1e-10;
+  typedef double realT;
+
+  typedef singleRootSolver<realT> SRS;
+
+  realT epsilon=1e-10;
 
   int seed=42;
   int maxTotalDegree=42;
@@ -103,12 +103,12 @@ int main(int args, char *arg[]){
   srand(seed);
 
 
-  polyParams* para = new polyParams();
+  polyParams<realT>* para = new polyParams<realT>();
   para->maxDegree = maxTotalDegree;
-  extra_polynomial * F = new extra_polynomial(para);
+  extra_polynomial<realT> * F = new extra_polynomial<realT>(para);
   F->randomiseTestcase();
 
-  extraSolver<SRS > eSRS(F);
+  extraSolver<SRS, realT > eSRS(F);
 
   eSRS.setPrecisionGoal(epsilon);
 
@@ -133,9 +133,9 @@ int main(int args, char *arg[]){
   cout << __FILE__ << " : The solver used " << F->getFunctionCallsCounter() << " function calls and computed the jacobian " << F->getJacobianCallsCounter() << " times."<<endl;
 
 
-  // complex<double> z=SRS.getLastPoint();
+  // complex<realT> z=SRS.getLastPoint();
   // int closest=0;
-  // double dist =abs(z-zeros[0]);
+  // realT dist =abs(z-zeros[0]);
 
   // for(int i=0;i<degree;i++){
   //   if(abs(zeros[i]-z)<dist){

@@ -39,6 +39,12 @@
 #include <iostream>
 #include <string>
 #include<limits>
+
+//for traits:
+#include <type_traits>
+#include <eigen3/Eigen/Core>
+
+
 using namespace std;
 
 
@@ -54,9 +60,14 @@ namespace root_solver{
   template <typename valueT, typename derivativeT>
   class functions{
   public:
+    static_assert (std::is_same<typename Eigen::MatrixBase<valueT>::Scalar, typename Eigen::MatrixBase<derivativeT>::Scalar>::value, "Value and derivate type have different underlying scalar types.");
+    static_assert (std::is_same<typename Eigen::MatrixBase<valueT>::RealScalar, typename Eigen::MatrixBase<derivativeT>::RealScalar>::value, "Value and derivate type have different underlying real types.");
+    typedef typename Eigen::MatrixBase<valueT>::RealScalar real_type;
+    typedef typename Eigen::MatrixBase<valueT>::Scalar scalar_type;
 
     typedef valueT value_type;
     typedef derivativeT  derivative_type;
+    typedef functions<valueT,derivativeT>  functions_type;
 
     virtual valueT calcF()=0;
     virtual derivativeT calcJ()=0;
@@ -110,25 +121,13 @@ namespace root_solver{
    */
   template <typename valueT, typename derivativeT>
   class rootSolver{
-  protected:
-
-    //state variables for external use:
-    solver_state state;
-    valueT z;
-    valueT f;
-    derivativeT J;
-    double absF;
-
-    //success/abort criteria
-    double precisionGoal;
-    double minStepSize;
-    double minImprovePerStep;
-    double minRelativeImprovePerStep;
-
-    //user provides actual function:
-    functions<valueT,derivativeT> * calc;
-
   public:
+    //typedefs:
+    static_assert (std::is_same<typename Eigen::MatrixBase<valueT>::Scalar, typename Eigen::MatrixBase<derivativeT>::Scalar>::value, "Value and derivate type have different underlying scalar types.");
+    static_assert (std::is_same<typename Eigen::MatrixBase<valueT>::RealScalar, typename Eigen::MatrixBase<derivativeT>::RealScalar>::value, "Value and derivate type have different underlying real types.");
+
+    typedef typename Eigen::MatrixBase<valueT>::RealScalar real_type;
+    typedef typename Eigen::MatrixBase<valueT>::Scalar scalar_type;
     typedef valueT value_type;
     typedef derivativeT  derivative_type;
     typedef functions<valueT,derivativeT> functions_type;
@@ -139,9 +138,29 @@ namespace root_solver{
        static const int value_dimension = dim;
     */
 
+  protected:
+
+    //state variables for external use:
+    solver_state state;
+    value_type z;
+    value_type f;
+    derivativeT J;
+    real_type absF;
+
+    //success/abort criteria
+    real_type precisionGoal;
+    real_type minStepSize;
+    real_type minImprovePerStep;
+    real_type minRelativeImprovePerStep;
+
+    //user provides actual function:
+    functions<value_type,derivativeT> * calc;
+
+  public:
+
     rootSolver(functions_type * f_):state(NOINIT),precisionGoal(0.0),minStepSize(0.0),minImprovePerStep(0.0),minRelativeImprovePerStep(0.0),calc(f_){
       if(getPrecisionGoal()==0.0){
-        setPrecisionGoal(numeric_limits<double>::epsilon());
+        setPrecisionGoal(numeric_limits<real_type>::epsilon());
       }
     }
 
@@ -151,30 +170,30 @@ namespace root_solver{
     value_type getLastPoint(){return z;}
     value_type getLastValue(){return f;}
     solver_state getState(){return state;}
-    double getAbsF(){return absF;}
+    real_type getAbsF(){return absF;}
 
     /// Setting a new starting point will reset the solver
-    virtual void setStartPoint(valueT z_)=0;
+    virtual void setStartPoint(value_type z_)=0;
 
-    double getPrecisionGoal(){return precisionGoal;}
-    double getMinStepSize(){return minStepSize;}
-    double getMinImprovePerStep(){return minImprovePerStep;}
-    double getMinRelativeImprovePerStep(){return minRelativeImprovePerStep;}
+    real_type getPrecisionGoal(){return precisionGoal;}
+    real_type getMinStepSize(){return minStepSize;}
+    real_type getMinImprovePerStep(){return minImprovePerStep;}
+    real_type getMinRelativeImprovePerStep(){return minRelativeImprovePerStep;}
 
     /// \f$ |f| < precisionGoal \f$ should be the SUCCESS criterion
-    virtual void setPrecisionGoal(double goal);
+    virtual void setPrecisionGoal(real_type goal);
 
     /// if the absolute value of a step is smaller than this value,
     /// the solver is considered as STUCK
-    virtual void setMinStepSize(double size){minStepSize=size;}
+    virtual void setMinStepSize(real_type size){minStepSize=size;}
 
     /// if the improve of the absolute value \f$ |f| \f$ in a step is
     /// smaller than this, the solver is considered as STUCK
-    virtual void setMinImprovePerStep(double impro){minImprovePerStep=impro;}
+    virtual void setMinImprovePerStep(real_type impro){minImprovePerStep=impro;}
 
     /// if \f$ \frac{|f_{old}|-|f_{new}|}{|f_{old}|} \f$ in a step is
     /// smaller than this, the solver is considered as STUCK
-    virtual void setMinRelativeImprovePerStep(double relImpro){minRelativeImprovePerStep=relImpro;}
+    virtual void setMinRelativeImprovePerStep(real_type relImpro){minRelativeImprovePerStep=relImpro;}
 
     /// This is the main part of the solver, actually computing a step towards the solution.
     /// Should be run while (step() >= CONTINUE)
@@ -182,13 +201,13 @@ namespace root_solver{
 
 
     /// step may optionally reset the precision goal ...
-    virtual solver_state step(double epsilonF){
+    virtual solver_state step(real_type epsilonF){
       setPrecisionGoal(epsilonF);
       return step();
     }
 
     /// ... and stepSize
-    virtual solver_state step(double epsilonF, double epsilonZ){
+    virtual solver_state step(real_type epsilonF, real_type epsilonZ){
       setMinStepSize(epsilonZ);
       return step(epsilonF);
     }
@@ -199,7 +218,7 @@ namespace root_solver{
     ///
     /// The default is to consider the solver as STUCK if any of the
     /// stuck criteria is fulfilled.
-    virtual solver_state checkStatus(double newAbsF, double oldAbsF, double absDeltaZ);
+    virtual solver_state checkStatus(real_type newAbsF, real_type oldAbsF, real_type absDeltaZ);
 
   };
 
@@ -208,8 +227,9 @@ namespace root_solver{
   //------------------------------------------------------------------------------------------------
 
 
+
   template <typename valueT, typename derivativeT>
-  solver_state rootSolver<valueT, derivativeT>::checkStatus(double newAbsF, double oldAbsF, double absDeltaZ){
+  solver_state rootSolver<valueT, derivativeT>::checkStatus(real_type newAbsF, real_type oldAbsF, real_type absDeltaZ){
     if(newAbsF<=getPrecisionGoal()){
 #if DEBUG>=SPAM
       cout << __FILE__ << " : SUCCESS"<<endl;
@@ -228,7 +248,7 @@ namespace root_solver{
 #endif
       return REJECT;
     }
-    double deltaAbsF = oldAbsF - newAbsF;
+    real_type deltaAbsF = oldAbsF - newAbsF;
     if(deltaAbsF < minImprovePerStep || deltaAbsF / oldAbsF < minRelativeImprovePerStep){
 #if DEBUG>=SPAM
       cout << __FILE__ << " : STUCK due to |f| improve " << deltaAbsF << " < " << minImprovePerStep << " or relative improve " << deltaAbsF / oldAbsF  << " < " << minRelativeImprovePerStep << endl;
@@ -247,10 +267,11 @@ namespace root_solver{
 
 
   template <typename valueT, typename derivativeT>
-  void rootSolver<valueT, derivativeT>::setPrecisionGoal(double goal){
+  void rootSolver<valueT, derivativeT>::setPrecisionGoal(real_type goal){
     precisionGoal=goal;
     if(getMinStepSize()==0 && getMinImprovePerStep()==0&& getMinRelativeImprovePerStep()==0){//no stuck criterion set
       setMinRelativeImprovePerStep(1e-2);//default relative improve criterion is 1%
+      setMinImprovePerStep(numeric_limits<real_type>::epsilon()*1e5);//much larger than current machine precision
     }
   }
 
