@@ -1,7 +1,7 @@
 /**
  * @file polynomials.hpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0.2014-05-21
+ * @version 1.0.2014-06-11
  *
  * @section DESCRIPTION
  *
@@ -239,7 +239,7 @@ public:
 template <typename realT=double>
 class polynomial : public virtual SRS_functions<root_solver::complex<realT>>{
  protected:
-  polynomials<1> ps;
+  polynomials<1,realT> ps;
 
  public:
 

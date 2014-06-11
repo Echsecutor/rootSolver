@@ -1,7 +1,7 @@
 /**
  * @file extrapolationData.hpp
  * @author Sebastian Schmittner <sebastian@schmittner.de>
- * @version 1.0-2014-05-21
+ * @version 1.0-2014-06-11
  *
  * @section DESCRIPTION
  *
@@ -209,7 +209,7 @@ dataT extrapolationData<dataT,numericalT,parameterT,dataDim,degree>::extrapolate
     if(!calculateCoefficients()){
 
 #if DEBUG >= WARN
-      cout <<  __FILE__ << " : Extrapolation failed. Falling back to constant extrapolation."<<endl;
+      cout <<  __FILE__ << " : Extrapolation failed. Falling back to constant extrapolation. At (" <<*(last.dat)<< " , " << last.extra <<")"<<endl;
 #endif
       //use constant extrapolation instead
       this->clear();
@@ -372,9 +372,9 @@ bool extrapolationData<dataT,numericalT,parameterT,dataDim,degree>::calculateCoe
 #endif
 
 
-    if(! target.isApprox(powers * coefficient)){
+    if(! target.isApprox(powers * coefficient) && (powers * coefficient - target).norm() > 1e-12){//for gmp isApprox is a little bit to pessimistic ;)
 #if DEBUG>=ERR
-      cout << __FILE__ << " : " << "Extrapolation failed."<<endl;
+      cout << __FILE__ << " : " << "Extrapolation failed. (Error = " << (powers * coefficient - target).norm() << ")" <<endl;
 #endif
       return false;
     }

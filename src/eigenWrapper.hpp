@@ -12,9 +12,11 @@ class myAbs{
 private:
   dataT X;
 public:
+  typedef typename Eigen::MatrixBase<dataT>::RealScalar real_type;
+
   myAbs(dataT Y):X(Y){}
 
-  operator typename Eigen::NumTraits<dataT>::Real(){
+  operator real_type(){
     return X.norm();
   }
 };
@@ -26,10 +28,13 @@ private:
 public:
   myAbs(dataT Y):X(Y){}
 
-  operator typename Eigen::NumTraits<dataT>::Real(){
+  typedef typename Eigen::MatrixBase<dataT>::RealScalar real_type;
+
+  operator real_type(){
     return abs(X);
   }
 };
+
 
 
 

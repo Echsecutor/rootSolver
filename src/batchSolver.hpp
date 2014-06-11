@@ -1,7 +1,7 @@
 /**
  * @file batchSolver.hpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0.2014-04-30
+ * @version 1.0.2014-06-11
  *
  * @section DESCRIPTION
  *
@@ -55,7 +55,7 @@
 #include <chrono>
 
 #include "rootSolver.hpp"
-
+#include "util.hpp"
 
 using namespace std;
 
@@ -125,6 +125,8 @@ namespace root_solver{
 
   template<typename rootSolverT, class parameterSetIterator>
   int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, typename rootSolverT::real_type precisionGoal, bool saveIntermediateSteps){
+
+    initScalarType<typename rootSolverT::scalar_type>::ini();
 
     ofstream out;
 

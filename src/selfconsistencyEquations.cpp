@@ -1,7 +1,7 @@
 /**
  * @file selfconsistencyEquations.cpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0.2014-05-22
+ * @version 1.0.2014-06-11
  *
  *
  * @section DESCRIPTION
@@ -30,10 +30,12 @@
 /// change the following to adapt the internal precision
 //typedef long double real_type;
 
-#include <mpreal.h>
-using namespace mpfr;
-typedef mpreal real_type;
+#define MPREALPRECISION 256
 
+#include "complexMprealWrapper.hpp"
+using namespace mpfr;
+
+typedef mpreal real_type;
 
 
 #include "preProDebugFlags.h"
@@ -53,7 +55,6 @@ using namespace std;
 //#include "logger.hpp"
 
 //root finding:
-#include "complex.hpp"
 #include "singleRootSolver.hpp"
 #include "batchSolver.hpp"
 #include "extrapolationSolver.hpp"
@@ -163,10 +164,7 @@ void help(){
 ///
 int main(int args, char *arg[]){
 
-  unsigned int precision=256;
-  mpreal::set_default_prec(precision);
-  root_solver::complex<real_type>::PI = const_pi(precision, mpreal::get_default_rnd());
-
+  initScalarType<root_solver::complex<real_type> >::ini();
 
   cout.precision(5);
   cout << std::scientific;

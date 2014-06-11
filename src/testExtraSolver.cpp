@@ -1,7 +1,7 @@
 /**
  * @file testExtraSolver.cpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0.2014-05-15
+ * @version 1.0.2014-06-11
  *
  * @section DESCRIPTION
  *

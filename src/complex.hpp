@@ -1,24 +1,42 @@
 /**
  * @file complex.hpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0.2014-06-06
+ * @version 1.0.2014-06-11
  *
  * @section DESCRIPTION
  *
  *
- * problem with std::complex :
+ * The trouble with with std::complex<T> is
+ * (according to http://www.cplusplus.com/reference/complex/complex/ ):
  *
  * The effect of instantiating a complex with a T other than
  * float, double or long double is undefined (certain library
  * implementations may support it, but the resulting code is
  * non-portable).
  *
- * What actually happens is that accuracy is lost unpredictably at
- * various arithmetic operations... o0
+ * What actually happens within my setup is that accuracy is lost
+ * unpredictably at various arithmetic operations... o0
  *
- * Hence here is my own implementation of complex numbers.... Can't believe that I had to write this...
+ * Googling for a while did not produce a complex high precision
+ * solution for Eigen, hence here is my own implementation.
  *
- * Notice: https://stackoverflow.com/questions/1759300/when-should-i-write-the-keyword-inline-for-a-function-method
+ * (Notice: https://stackoverflow.com/questions/1759300/when-should-i-write-the-keyword-inline-for-a-function-method )
+ *
+ *
+ * This class can be used like
+ * #include <mpreal.h>
+ * using namespace mpfr;
+ * typedef mpreal real_type;
+ * typedef root_solver::complex<real_type> complex_type;
+ * int main(int args, char *arg[]){
+ * unsigned int precision=256;
+ * mpreal::set_default_prec(precision);
+ * root_solver::complex<real_type>::PI = const_pi(precision, mpreal::get_default_rnd());
+ * complex_type I(0.0,1.0);
+ * ...
+ *
+ * See e.g. derivativeVerification.cpp for a working example.
+ *
  *
  *
  * @section LICENSE
@@ -35,25 +53,32 @@
  */
 
 
-
-//todo: check that eigen uses conj() to produce real valued vector.norm()
-
-
 #ifndef COMPLEX_HPP
 #define COMPLEX_HPP
 
 #include <stdexcept>
-#include <eigen3/Eigen/Eigen>
+#include <eigen3/Eigen/Core>
+#include "util.hpp"
 
+#include <cmath>//for std::sqrt and log
 
-//the following is needed for the sqrt(double)... hopefully the compiler will give the appropriate sqrt(realT) preference...
-#include <cmath>
 
 namespace root_solver{
+  /** Use MatrixBase as a trait to obtain
+   *
+   * typedef Eigen::MatrixBase<EigenStuff<root_solver::complex<_real_type>>>::RealScalar real_type;
+   *
+   * and also
+   *
+   * typedef Eigen::MatrixBase<root_solver::complex<_real_type>>::RealScalar real_type;
+   *
+   * Notice that NumTraits<...>::Real only works in the
+   * second case but produces a matrix with real entries in the first.
+   *
+   */
+  using Eigen::MatrixBase;
 
-  using Eigen::NumTraits; ///< use this to obtain NumTraits<root_solver::complex<_Real> >::Real = _Real
-
-  //only for std types...hopefully
+  //only for std types... hopefully ;)
   using std::sqrt;
   using std::log;
 
@@ -229,6 +254,7 @@ namespace root_solver{
   template<typename realT>
   realT complex<realT>::PI=0.0;
 
+
   template<typename realT>
   const complex<realT> complex<realT>::I = complex<real_type>(0.0,1.0);
 
@@ -300,6 +326,7 @@ namespace root_solver{
 
 
   //some important functions
+  //todo: increase precision internally for mpfr types
 
   /// computes exp(i x)
   template<typename realT>
@@ -339,9 +366,9 @@ namespace root_solver{
 
 
 
-//explain to eigen that this is a complex type sorry for fiddleing
-//with your namespaces, guys. ;) I hope, following the std conventions,
-//adding specialisations for my own types is ok.
+// Explaining to Eigen that this is a complex type.
+// I hope, following the std conventions, i.e.
+// adding specialisations for my own types is ok. ;)
 namespace Eigen{
   using root_solver::complex;
 
@@ -454,12 +481,7 @@ namespace Eigen{
       }
     };
 
-
-
-
   }
-
-
 }
 
 

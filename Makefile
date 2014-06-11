@@ -1,7 +1,7 @@
 # 
 # @file Makefile
 # @author  Sebastian Schmittner <sebastian@schmittner.pw>
-# @version 1.0.2014-05-19
+# @version 1.0.2014-06-11
 #
 # @section Version number format
 #
@@ -36,7 +36,9 @@ export TESTCASES = $(ROOTDIR)/test-in
 export CC = g++
 
 # notice that "eigen3/..." and mpreal.h need to be included
-export LOCALINCLUDES = -I$(HOME)/include
+LOCALINCLUDES=-I$(HOME)/include
+
+DEBUGFLAGS=-g
 export CFLAGS = -Wall -Werror -ansi -pedantic -std=c++0x -pthread -Wfatal-errors $(LOCALINCLUDES)
 
 
@@ -49,7 +51,7 @@ export PREFLAGS = -D MULTITHREADED=0 -D DEBUG=11
 
 VPATH = $(SRCDIR):$(TESTDIR)
 
-constructionSite: clean selfconsistencyEquations.out
+#constructionSite: clean selfconsistencyEquations.out
 
 all: folders testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out selfconsistencyEquations.out derivativeVerification.out
 	@-mv *.dat $(TESTDIR) 2>/dev/null
@@ -58,9 +60,12 @@ all: folders testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSo
 	@echo 
 
 
-#production:
+## production:
+## Multithreading is turned off until 
+## https://github.com/Echsecutor/rootSolver/issues/9
+## is resolved.
 SCE: selfconsistencyEquations.cpp
-	$(CC) -DMULTITHREADED=1 -DDEBUG=3 -O2 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
+	$(CC) -DMULTITHREADED=0 -DDEBUG=3 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
 
 folders:
 	@-mkdir $(BINDIR)
@@ -71,7 +76,7 @@ $(BINDIR)/testBatch: testBatchSolver.cpp
 	@echo
 	@echo "[...]		Building single threaded $^"
 	@echo
-	$(CC) -D MULTITHREADED=0 -D DEBUG=11 $(CFLAGS) -o $@-single $^ $(LDFLAGS)
+	$(CC) -D MULTITHREADED=0 -D DEBUG=11 $(CFLAGS) $(DEBUGFLAGS) -o $@-single $^ $(LDFLAGS)
 	@echo
 	@echo "[...]		Test run for singled threaded batch solver"
 	@echo
@@ -81,7 +86,7 @@ $(BINDIR)/testBatch: testBatchSolver.cpp
 	@echo
 	@echo "[...]		Building multi threaded $^"
 	@echo
-	$(CC) -D MULTITHREADED=1 -D DEBUG=11 $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) -D MULTITHREADED=1 -D DEBUG=11 $(CFLAGS) $(DEBUGFLAGS) -o $@ $^ $(LDFLAGS)
 
 
 
@@ -93,7 +98,7 @@ $(BINDIR)/%: %.cpp
 	@echo
 	@echo "[...]		Building $^"
 	@echo
-	$(CC) $(PREFLAGS) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(PREFLAGS) $(CFLAGS) $(DEBUGFLAGS) -o $@ $^ $(LDFLAGS)
 
 
 selfconsistencyEquations.out: $(BINDIR)/selfconsistencyEquations
@@ -122,5 +127,5 @@ clean:
 
 # actually not used for test cases
 %.o : %.cpp
-	$(CC) $(PREFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CC) $(PREFLAGS) $(CFLAGS) $(DEBUGFLAGS) -c -o $@ $<
 

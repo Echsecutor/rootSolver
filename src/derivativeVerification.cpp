@@ -1,7 +1,7 @@
 /**
  * @file derivativeVerification.cpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0.2014-06-04
+ * @version 1.0.2014-06-11
  *
  *
  * @section DESCRIPTION
@@ -25,32 +25,23 @@
  */
 
 
-
-
-// #include <boost/multiprecision/cpp_dec_float.hpp>
-// using boost::multiprecision::cpp_dec_float_50;
-// typedef cpp_dec_float_50 real_type;
-
-#include <mpreal.h>
-using namespace mpfr;
-typedef mpreal real_type;
-
-
 #include "preProDebugFlags.h"
 
 #include <iostream>
 #include <string>
 #include <limits>
-#include "complex.hpp"
 #include <random>
 #include <chrono>
 
 using namespace std;
 
-using namespace root_solver;
 
-static root_solver::complex<real_type> I(0.0,1.0);
-#define COMPLEX_I
+
+#define MPREALPRECISION 256
+
+#include "complexMprealWrapper.hpp"
+using namespace mpfr;
+typedef mpreal real_type;
 
 
 //self consistency equations:
@@ -58,60 +49,63 @@ static root_solver::complex<real_type> I(0.0,1.0);
 #include "SCE.hpp"
 
 
+using namespace root_solver;
+
+
 int main(int args, char *arg[]){
 
-  unsigned int precision=256;
-  mpreal::set_default_prec(precision);
-  root_solver::complex<real_type>::PI = const_pi(precision, mpreal::get_default_rnd());
-  
+
+  initScalarType<root_solver::complex<real_type> >::ini();
+
   cout.precision(3);
   cout << std::scientific;
 
   default_random_engine gen(chrono::system_clock::now().time_since_epoch().count());
   normal_distribution<double> nd;
 
-  real_type omega=1e-1;
-  real_type dim=1;
+  real_type omega=1e-3;
+  real_type dim=3.0;
   real_type epsilon = 1e-9;
   real_type bsbm = 1.0;
 
-  real_type bmTarget=1e-2;///< will extrapolate from b=0 or from file towards bNuGoal
-  real_type Db=1e-8;///< initial b step size, dynamically adapted
-  real_type maxDb=1e-3;///< sets a minimal resolution in b
-  real_type minDb=1e-10;///< avoid getting stuck
+  //  real_type bmTarget=0.14;
+  real_type bmTarget=1e-1;
+  real_type Db(1.0);
+  real_type maxDb(1.0);
+  real_type minDb(1.0);
 
 
   list <SCE_parameters<real_type> > params;
 
-  params.push_back(SCE_parameters<real_type>(dim,epsilon + I * omega));
+  params.push_back(SCE_parameters<real_type>(dim,root_solver::complex<real_type>(epsilon, omega)));
 
   SCE<real_type> F (bsbm, bmTarget, maxDb, minDb, Db);
 
   F.setParameters(params.begin());
 
-  F.set_extra_parameter(2.0);
+  F.set_extra_parameter(bmTarget);
 
   //start somewhere
-  real_type one("1.0");
-  root_solver::complex<real_type> x1,direction,x2, f1, f2, DfDz, J;
+  real_type one(1.0);
+  root_solver::complex<real_type> x1,direction,x2, f1, f2, DfDz, J, I(0.0,1.0);
   real_type dist;
 
   cout << "numeric_limits<real_type>::epsilon() = " << numeric_limits<real_type>::epsilon() <<endl <<endl;
 
   root_solver::complex<real_type> eps(1.0),check=one+eps;
   while( abs(abs((check - one) / eps) - one) < 1e-2){
-    eps *=1e-1;
+    eps *= real_type(1e-1);
     check=one+eps;
   }
 
   cout << "complex 1 ~ epsilon > " << eps <<endl <<endl;
 
-  eps = (real_type)nd(gen) + I * (real_type)nd(gen);
+  eps = root_solver::complex<real_type>(nd(gen),nd(gen));
   eps /= abs(eps);
   check=one+I+eps;
 
   while( abs(abs((check - one-I) / eps) - one) < 1e-2){
-    eps *=1e-1;
+    eps *= real_type(1e-1);
     check=one+I+eps;
     //  cout <<eps<< "(" << check - one << ")"<<endl;
   }
@@ -120,11 +114,15 @@ int main(int args, char *arg[]){
 
   bool good = true;
 
-  real_type maxErr=0.0;
+  real_type err,maxErr=0.0;
   real_type maxFinalErr=0.0;
 
   for(int i=0;i<5 && good;i++){
     x1 = root_solver::complex<real_type>(nd(gen), nd(gen));
+
+    //for specific point:
+    //    x1=root_solver::complex<real_type>(28.1,-1.3);
+
     F.changePoint(x1);
     f1 = F.calcF();
     J = F.calcJ();
@@ -139,30 +137,38 @@ int main(int args, char *arg[]){
       x2 = x1 + direction * dist;
 
       if(abs(abs((x2 - x1) / dist/direction) - one) > 1e-2){
-	cout << "\n\nprecision underflow at dist = " << dist << ", direction*dist = " << direction*dist << ", x2-x1 = " << x2-x1 <<endl;
-	cout << "abs(x2 - x1) = " << abs(x2 - x1) << ", rel err = ";
-	  cout << abs(abs((x2 - x1) / dist/direction) - one)<<endl;
-	return 1;
+        cout << "\n\nprecision underflow at dist = " << dist << ", direction*dist = " << direction*dist << ", x2-x1 = " << x2-x1 <<endl;
+        cout << "abs(x2 - x1) = " << abs(x2 - x1) << ", rel err = ";
+        cout << abs(abs((x2 - x1) / dist/direction) - one)<<endl;
+        return 1;
       }
 
       F.changePoint(x2);
       f2 = F.calcF();
       //    DfDz=(f2 - f1)/(direction * dist);//much worse results...
       DfDz=(f2 - f1) / (x2 - x1);
-      cout << "|Dz| = " << dist << " => Df/Dz = " << (f2-f1) << " / " << (x2-x1) << " = " << DfDz << " \t(off by " << 100.0 * abs(DfDz - J)/abs(J) << " %)"<<endl;
+      err=abs(DfDz - J);
+      cout << "|Dz| = " << dist << " => Df/Dz = " << (f2-f1) << " / " << (x2-x1) << " = " << DfDz << " \t(off by " <<err;
+
+      if(abs(J)!=0){
+        cout <<" = " << 100.0 * abs(DfDz - J)/abs(J) << " %)"<<endl;
+        err/=abs(J);
+      }else{
+        cout <<")"<<endl;
+      }
       //      dist *= 1e-1;
       dist*=1e-1;
-      if(abs(DfDz-J)/abs(J)>maxErr){
-        maxErr=abs(DfDz-J)/abs(J);
+      if(err>maxErr){
+        maxErr=err;
       }
     }
-      if(abs(DfDz-J)/abs(J)>maxFinalErr){
-        maxFinalErr=abs(DfDz-J)/abs(J);
-      }
+    if(err>maxFinalErr){
+      maxFinalErr=err;
+    }
 
 
 
-    if(abs(DfDz-J)/abs(J) < 1e-2){
+    if(err < 1e-2){
       cout <<"\n\nseems legitimate."<<endl;
     }else{
       cout << "does not look good... \n"<<endl;

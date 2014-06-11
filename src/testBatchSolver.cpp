@@ -1,7 +1,7 @@
 /**
  * @file testBatchSolver.cpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0.2014-05-21
+ * @version 1.0.2014-06-11
  *
  * @section DESCRIPTION
  *
@@ -30,7 +30,6 @@
 
 #include "preProDebugFlags.h"
 
-
 #include <iostream>
 #include <string>
 #include <time.h>
@@ -49,6 +48,12 @@ using namespace root_solver;
 //trial function
 #include "polynomials.hpp"
 
+
+#include "mprealWrapper.hpp"
+using namespace mpfr;
+typedef mpreal realT;
+
+//  typedef double realT;
 
 
 
@@ -74,11 +79,11 @@ void help(){
 ///
 int main(int args, char *arg[]){
 
-  typedef double realT;
+  initScalarType<realT>::ini();
 
   const int dim=3;
 
-  double epsilon=1e-8;
+  realT epsilon=1e-8;
 
   int seed=42;
   int maxTotalDegree=9;

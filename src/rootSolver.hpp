@@ -1,7 +1,7 @@
 /**
  * @file rootSolver.hpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0-2014-03-31
+ * @version 1.0-2014-06-11
  *
  * @section DESCRIPTION
  *

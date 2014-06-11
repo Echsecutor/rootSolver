@@ -1,7 +1,7 @@
 /**
  * @file testSRS.cpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0-2014-04-02
+ * @version 1.0.2014-06-11
  *
  * @section DESCRIPTION
  *

@@ -1,7 +1,7 @@
 /**
  * @file SCE.hpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0.2014-05-26
+ * @version 1.0.2014-06-11
  *
  * @section DESCRIPTION
  *
@@ -133,8 +133,10 @@ private:
 
 public:
 
-  static const root_solver::complex<realT> one;
-  static const root_solver::complex<realT> two;
+  typedef root_solver::complex<realT> complex_type;
+
+  static const complex_type one;
+  static const complex_type two;
 
 
   SCE(realT bs_over_bm, realT final_bm, realT max_d_bm, realT min_d_bm, realT ini_d_bm):dBMSet(false),p(0), bs_bm(bs_over_bm),target_bm(final_bm),max_change(max_d_bm),min_change(min_d_bm),initial_change(ini_d_bm){}
@@ -169,9 +171,9 @@ public:
 //stupidly the implicit double to complex<realT> cast doesn't work due
 //to ambiguities
 template<typename realT>
-const root_solver::complex<realT> SCE<realT>::one = root_solver::complex<realT>(1.0);
+const typename SCE<realT>::complex_type SCE<realT>::one = complex_type(1.0);
 template<typename realT>
-const root_solver::complex<realT> SCE<realT>::two = root_solver::complex<realT>(2.0);
+const typename SCE<realT>::complex_type SCE<realT>::two = complex_type(2.0);
 
 
 
@@ -191,11 +193,11 @@ void SCE<realT>::setParameters(typename SCE<realT>::iterator It){
     throw runtime_error(string(__FILE__) + string(" : Debeye approximation only implemented for odd dimensions."));
   }
 
-  assert (root_solver::complex<realT>::PI != 0.0);
+  assert (complex_type::PI != 0.0);
 
-  realT fac = root_solver::complex<realT>::PI;
+  realT fac = complex_type::PI;
   for(realT f = n + 1.0; f <= 2.0 * n; f++){
-    fac *= f * root_solver::complex<realT>::PI;
+    fac *= f * complex_type::PI;
   }
 
   p->cutOff = pow( (2.0 * n + 1.0) * fac, 1.0 / (2.0 * n + 1.0) );
@@ -249,9 +251,9 @@ void SCE<realT>::computeInt(){
   Int=0.0;
 
   if(p->dim==1.0){
-    root_solver::complex<realT> D = - two * b;
-    root_solver::complex<realT> C = a + two * p->dim * b;
-    root_solver::complex<realT> rt= sqrt(C*C - D*D);
+    complex_type D = - two * b;
+    complex_type C = a + two * p->dim * b;
+    complex_type rt= sqrt(C*C - D*D);
 
 #if DEBUG >= SPAM
     cout << __FILE__ << " : Using exact 1d integral, C=" << C << ", D=" << D <<endl;
@@ -279,20 +281,20 @@ void SCE<realT>::computeInt(){
 #endif
 
 
-  root_solver::complex<realT> rt= sqrt(b/a);
+  complex_type rt= sqrt(b/a);
 
-  Int += arctanOverX(rt * p->cutOff);
+  Int = arctanOverX(rt * p->cutOff);
 
-  root_solver::complex<realT> pow(1.0);
-  root_solver::complex<realT> powAB(1.0);
+  complex_type pow(1.0);
+  complex_type powAB(1.0);
 
-  for(int k=0;k<n;k++){
-    Int -= pow / (two * (realT) k + one);
+  for(realT k=0.0;k<n;k++){
+    Int -= pow / (two * k + one);
     pow *= - b / a * p->cutOff * p->cutOff;
-    powAB *=- a / b;
+    powAB *= - a / b;
   }
 
-  Int *= p->cutOff/a * powAB;
+  Int *= p->cutOff / a * powAB;
 
 
 }
@@ -317,7 +319,7 @@ void SCE<realT>::changePoint(const typename SCE<realT>::value_type x){
 }
 
 template<typename realT>
-root_solver::complex<realT> SCE<realT>::arctanOverX(root_solver::complex<realT> x){
+typename SCE<realT>::complex_type SCE<realT>::arctanOverX(complex_type x){
   if (abs(x) < 1e-6){
     return one - x * x / (two+ one);//at abs(x)=0.001 the relative error of this approximation is about 2e-13
   }
@@ -335,9 +337,17 @@ typename SCE<realT>::value_type SCE<realT>::calcF(){
   //  return BM;
   //  return p->g;
   //  return dBS;
-  //return a + two * p->dim * b;//C
+  // return a + two * p->dim * b;//C
   // return - two * b; //D
+  //  return a;
+  // return b;
   //return Int;
+
+  //enforce positive density of states. (There seems to be another solution for \f$ - \bar g \f$.)
+  if(real(p->g)<-1e-10){
+    return realT(1e10);
+    //    return mpfr::const_infinity(); //inf quickly leads to nan, nan leads to errors, errors lead to suffering... ;)
+  }
 
   return BS * Int - one;
   //todo: idea: use log(BS*Int) instead???
@@ -348,50 +358,53 @@ typename SCE<realT>::value_type SCE<realT>::calcF(){
 template<typename realT>
 typename SCE<realT>::derivative_type SCE<realT>::calcJ(){
 
-  
-  root_solver::complex<realT> Dg = (one + two * p->bm * dBM + p->bm) / p->z;
+  if(real(p->g)<-1e-10){
+    return realT(0.0);
+  }
 
 
-  root_solver::complex<realT> DBM = p->bm;
-  //    root_solver::complex<realT> DdBS= BS * dBS * Dg / p->g  + dBS*(one - p->bs * dBS / BM / (BM + p->bm)) * (two * BM + p->bm) / BM / (BM + p->bm) * DBM;//wrong
+  complex_type Dg = (one + two * p->bm * dBM + p->bm) / p->z;
 
-  root_solver::complex<realT> DdBS = - BS * BS / p->z *(BM * (BM + p->bm) * Dg + p->g * (two * BM + p->bm) * DBM);
+  complex_type DBM = p->bm;
 
+  complex_type DdBS = - BS * BS / p->z *(BM * (BM + p->bm) * Dg + p->g * (two * BM + p->bm) * DBM);
 
-  root_solver::complex<realT> Da = p->z * Dg + p->bs * DdBS *(one - p->dim);
-  root_solver::complex<realT> Db = - (one + two * p->bs * dBS) * DdBS / two / p->dim;
+  complex_type Da = p->z * Dg + p->bs * DdBS *(one - p->dim);
+  complex_type Db = - (one + two * p->bs * dBS) * DdBS / two / p->dim;
 
-
-  root_solver::complex<realT> DInt(0.0);
+  complex_type DInt(0.0);
 
   if(p->dim == 1.0){
-    root_solver::complex<realT> D = - two * b;
-    root_solver::complex<realT> C = a + two * p->dim * b;
-    root_solver::complex<realT> DD = - two * Db;
-    root_solver::complex<realT> DC = Da + two * p->dim * Db;
+    complex_type D = - two * b;
+    complex_type C = a + two * p->dim * b;
+    complex_type DD = - two * Db;
+    complex_type DC = Da + two * p->dim * Db;
     //return DC;
     //    return DD;
     DInt = Int*Int*Int * (D * DD - C * DC);
 
   }else{
 
-    root_solver::complex<realT> t = p->cutOff / a / (one + b / a * p->cutOff*p->cutOff);
-    DInt += (t - Int) * (Db / b   - Da / a) / two;
+    complex_type X = sqrt(b/a) * p->cutOff;
+    complex_type DX = X / two * (Db / b - Da / a);
+
+    DInt = one / (one + X*X) - arctanOverX(X) ;
 
 
-    root_solver::complex<realT> pow(1.0);
-    root_solver::complex<realT> powAB(1.0);
-    for(int k=1;k<n;k++){
-      pow *= - b / a  * p->cutOff * p->cutOff ;
-      DInt -=  pow / (two * (realT)k + one) * (realT)k * ( Db / b - Da / a) ;
+    complex_type pow(1.0);
+    complex_type powAB(1.0);
+    for(realT k=1.0;k<n;k++){
+      pow *= X*X;
+      DInt -=  two * k / (two * k + one) * pow;
 
       powAB *= - a / b;
     }
-    powAB *= - a / b;//(-1/b)^n
 
-    DInt *= p->cutOff / a * powAB;
+    powAB *= - a / b;//(-a/b)^n
 
-    DInt += Int *((n - one) * Da / a - n * Db / b);
+    DInt *= p->cutOff / a * powAB * DX / X;
+
+    DInt += Int * ((n - one) * Da / a - n * Db / b);
 
   }
 
@@ -399,7 +412,9 @@ typename SCE<realT>::derivative_type SCE<realT>::calcJ(){
   //  return DBM;
   //  return Dg;
   //  return DdBS;
-  //  return DInt;
+  //  return Da;
+  // return Db;
+  //return DInt;
 
   return Int * DdBS * p->bs + BS * DInt;
 

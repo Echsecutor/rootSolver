@@ -1,7 +1,7 @@
 /**
  * @file singleRootSolver.hpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0-2014.05.21
+ * @version 1.0.2014-06-11
  *
  * @section DESCRIPTION
  *
@@ -183,8 +183,8 @@ namespace root_solver{
 #if DEBUG>=SPAM
     cout << __FILE__ << " : relative deviation of finite differenze from derivative " << checkError << " for step size " << stepSize <<endl;
 #endif
-    if(checkError / stepSize > 1e2){
-      cerr <<endl << __FILE__ << " : CAUTION! There is most likely an error in your derivatives!"<<endl;
+    if(checkError > 1e-2){
+      cerr <<endl << __FILE__ << " : CAUTION! There is most likely an error in your derivatives at " << newZ <<endl;
     }
 #endif
 
