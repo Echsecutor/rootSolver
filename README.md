@@ -17,9 +17,7 @@ The latest release Version is 1.0.2014-06-11
 
 The Version number is formatted as "M.S.D" where M is the major release branch (backward compatibility to all non-alpha releases of the same branch is guaranteed), S is the state of this release (0 for alpha, 1 for beta, 2 for stable), and D is the date formatted as yyyy-mm-dd.
 
-Notable releases so far:
-
-- 1.0.2014-06-11 Multithreading with mpreals is buggy, but the single threaded version is stable enough to produce some real life useful data.
+For notable releases see [the github releases page](https://github.com/Echsecutor/rootSolver/releases).
 
 
 ## How-To
