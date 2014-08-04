@@ -64,7 +64,7 @@ int main(int args, char *arg[]){
   normal_distribution<double> nd;
 
   real_type omega=1e-3;
-  real_type dim=3.0;
+  real_type dim=2.0;
   real_type epsilon = 1e-9;
   real_type bsbm = 1.0;
 

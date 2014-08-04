@@ -21,6 +21,7 @@
  *
  */
 
+
 #define DEBUG 11
 
 #include "preProDebugFlags.h"
@@ -100,8 +101,8 @@ int main(int args, char *arg[]){
   srand(seed);
 
 
-  polyParams<realT>* para = new polyParams<realT>();
-  para->maxDegree = maxTotalDegree;
+  polyParams<realT> para;
+  para.maxDegree = maxTotalDegree;
   polynomial<realT> * F = new polynomial<realT>(para);
   F->randomiseTestcase();
 

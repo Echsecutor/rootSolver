@@ -38,22 +38,24 @@ export CC = g++
 # notice that "eigen3/..." and mpreal.h need to be included
 LOCALINCLUDES=-I$(HOME)/include
 
-DEBUGFLAGS=-g
-export CFLAGS = -Wall -Werror -ansi -pedantic -std=c++0x -pthread -Wfatal-errors $(LOCALINCLUDES)
-
+DEBUGFLAGS=-D DEBUG=11
+#-g
+export CFLAGS = -Wall -Werror -ansi -pedantic -std=c++0x -pthread $(LOCALINCLUDES)
+#-Wfatal-errors
 
 MPREALLIBS=-lgmpxx -lgmp -lmpfr
 
 export LDFLAGS = $(MPREALLIBS)
 
 
-export PREFLAGS = -D MULTITHREADED=0 -D DEBUG=11
+export PREFLAGS =
+# -D MULTITHREADED=0 -D DEBUG=1
 
 VPATH = $(SRCDIR):$(TESTDIR)
 
 #constructionSite: clean selfconsistencyEquations.out
 
-all: folders testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out selfconsistencyEquations.out derivativeVerification.out
+all: folders testComplex.out testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out derivativeVerification.out selfconsistencyEquations.out
 	@-mv *.dat $(TESTDIR) 2>/dev/null
 	@echo 
 	@echo "[OK]		All tests Passed! :D"
@@ -61,11 +63,20 @@ all: folders testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSo
 
 
 ## production:
+
 ## Multithreading is turned off until 
 ## https://github.com/Echsecutor/rootSolver/issues/9
 ## is resolved.
+
+SCE-approx: selfconsistencyEquations.cpp
+	$(CC) -DUSEEXACTINT=0 -DMULTITHREADED=0 -DDEBUG=3 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
+
 SCE: selfconsistencyEquations.cpp
 	$(CC) -DMULTITHREADED=0 -DDEBUG=3 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
+
+
+
+## testcases:
 
 folders:
 	@-mkdir $(BINDIR)
@@ -76,7 +87,7 @@ $(BINDIR)/testBatch: testBatchSolver.cpp
 	@echo
 	@echo "[...]		Building single threaded $^"
 	@echo
-	$(CC) -D MULTITHREADED=0 -D DEBUG=11 $(CFLAGS) $(DEBUGFLAGS) -o $@-single $^ $(LDFLAGS)
+	$(CC) -D MULTITHREADED=0 $(CFLAGS) $(DEBUGFLAGS) -o $@-single $^ $(LDFLAGS)
 	@echo
 	@echo "[...]		Test run for singled threaded batch solver"
 	@echo
@@ -86,7 +97,7 @@ $(BINDIR)/testBatch: testBatchSolver.cpp
 	@echo
 	@echo "[...]		Building multi threaded $^"
 	@echo
-	$(CC) -D MULTITHREADED=1 -D DEBUG=11 $(CFLAGS) $(DEBUGFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) -D MULTITHREADED=1 $(CFLAGS) $(DEBUGFLAGS) -o $@ $^ $(LDFLAGS)
 
 
 
@@ -105,10 +116,16 @@ selfconsistencyEquations.out: $(BINDIR)/selfconsistencyEquations
 	@echo
 	@echo "[...]		Test run of $^"
 	@echo
-	$^ $(TESTCASES)/dummySCE.conf > $(TESTDIR)/$@ 2>&1
+	$^ $(TESTCASES)/dummySCE.conf multi-SCE > $(TESTDIR)/$@ 2>&1
 	@echo
-	@echo "[OK]		$^ test did not crash ;)"
+	@echo "[OK]		$^ multi-threaded test did not crash"
 	@echo
+	$^ $(TESTCASES)/dummySCE-single.conf single-SCE > $(TESTDIR)/$@-single 2>&1
+	@echo
+	@echo "[OK]		$^ single-threaded test did not crash"
+	@echo "    		$^ you should compare single- with multi-threaded results!"
+	@echo
+
 
 
 %.out: $(BINDIR)/%

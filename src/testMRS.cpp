@@ -95,11 +95,15 @@ int main(int args, char *arg[]){
   cout << __FILE__ << " : Seeding RNG with seed="<<seed<<endl;
   srand(seed);
 
-  polyParams<realT>* para = new polyParams<realT>();
-  para->maxDegree = maxTotalDegree;
-  polynomials<dim,realT> *F;
-  F = new polynomials<dim,realT>(para);
+  cout << __FILE__ << " : initialising polynomials..."<<endl;
+  polyParams<realT> para;
+  para.maxDegree = maxTotalDegree;
+  cout << __FILE__ << " : calling constructor"<<endl;
+  polynomials<dim,realT>* F = new polynomials<dim,realT>(para);
+  cout << __FILE__ << " : randomising..."<<endl;
   F->randomiseTestcase();
+
+  cout << __FILE__ << " : initialising multi root solver..."<<endl;
   multiRootSolver<root_solver::complex<realT>,dim> MRS(F);
   MRS.setStartPoint(F->guessStartPoint());
 

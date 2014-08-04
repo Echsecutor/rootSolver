@@ -81,6 +81,7 @@ namespace root_solver{
   //only for std types... hopefully ;)
   using std::sqrt;
   using std::log;
+  using std::exp;
 
 
   template<typename realT>
@@ -232,12 +233,12 @@ namespace root_solver{
     }
 
 
-    bool operator==(const complex<realT>& rhs) {
+    bool operator==(const complex<realT>& rhs) const{
       return RE == rhs.RE && IM == rhs.IM;
     }
 
-    bool operator!=(const complex<realT>& rhs) {
-      return *this != rhs;
+    bool operator!=(const complex<realT>& rhs) const{
+      return !(*this == rhs);
     }
 
 
@@ -350,7 +351,7 @@ namespace root_solver{
   template<typename realT>
   complex<realT> log(complex<realT> x){
     realT re = log(x.abs());
-    realT im = arg(x);
+    realT im = root_solver::arg(x);
     return complex<realT>(re,im);
   }
 
@@ -387,7 +388,6 @@ namespace Eigen{
     inline static Real epsilon() { return NumTraits<Real>::epsilon(); }
     inline static Real dummy_precision() { return NumTraits<Real>::dummy_precision(); }
   };
-
 
 
   namespace internal{

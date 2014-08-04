@@ -103,9 +103,9 @@ int main(int args, char *arg[]){
   srand(seed);
 
 
-  polyParams<realT>* para = new polyParams<realT>();
-  para->maxDegree = maxTotalDegree;
-  extra_polynomial<realT> * F = new extra_polynomial<realT>(para);
+  polyParams<realT> para;
+  para.maxDegree = maxTotalDegree;
+  polynomial<realT> * F = new polynomial<realT>(para);
   F->randomiseTestcase();
 
   extraSolver<SRS, realT > eSRS(F);

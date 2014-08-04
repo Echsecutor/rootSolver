@@ -37,9 +37,13 @@
  */
 
 
-
 #ifndef SCE_HPP
 #define SCE_HPP
+
+#ifndef USEEXACTINT
+#define USEEXACTINT 0
+#endif
+
 
 #include <ostream>
 #include <stdexcept>
@@ -62,7 +66,7 @@ using namespace root_solver;
 //------------------------------------------------------------------------------------------
 
 template<typename realT>
-class SCE_parameters{
+class SCE_parameters : public virtual ostream_insertable{
 public:
 
   typedef root_solver::complex<realT> complex_type;
@@ -74,12 +78,12 @@ public:
   SCE_parameters():dim(0),bs(0),bm(0),cutOff(0),z(0.0),g(0.0){}
   SCE_parameters(realT dim_,root_solver::complex<realT> z_):dim(dim_),bs(0),bm(0),cutOff(0),z(z_),g(0.0){}
 
-  SCE_parameters(const SCE_parameters<realT>& p2):dim(p2.dim),bs(p2.bs),bm(p2.bm),cutOff(p2.cutOff),z(p2.z),g(p2.g){}
+  // automatic member wise copy sufficient
+  //  SCE_parameters(const SCE_parameters<realT>& p2):dim(p2.dim),bs(p2.bs),bm(p2.bm),cutOff(p2.cutOff),z(p2.z),g(p2.g){}
 
-
-  friend ostream& operator<< (ostream &out, SCE_parameters<realT> &p){
-    out << p.dim << "\t" << p.bs << "\t" << p.bm << "\t" << real(p.z) << "\t" << imag(p.z) << "\t" << real(p.g) << "\t" << imag(p.g);//cutOff is computed from dim, irrelevant
-    return out;
+  virtual void insertMeInto(ostream &out) const {
+    out << dim << "\t" << bs << "\t" << bm << "\t" << real(z) << "\t" << imag(z) << "\t" << real(g) << "\t" << imag(g);
+    //cutOff is computed from dim, irrelevant
   }
 
   static string getFormat(){
@@ -96,6 +100,8 @@ public:
     re = re && this->g == rhs.g;
     return re;
   }
+
+  // automatic assignment operator should be fine
 
 };
 
@@ -117,8 +123,9 @@ private:
   bool dBMSet;
 
   //parameters:
-  SCE_parameters<realT>* p;
-  realT n;///< dim = 2 n +1
+  SCE_parameters<realT> p;
+  realT n;///< dim = 2 n +1 or dim =2n
+  bool oddDim;
 
   realT bs_bm;///< fixed ratio \f$ \frac{b_s}{b_m} \f$
   realT target_bm, max_change, min_change, initial_change;
@@ -139,12 +146,17 @@ public:
   static const complex_type two;
 
 
-  SCE(realT bs_over_bm, realT final_bm, realT max_d_bm, realT min_d_bm, realT ini_d_bm):dBMSet(false),p(0), bs_bm(bs_over_bm),target_bm(final_bm),max_change(max_d_bm),min_change(min_d_bm),initial_change(ini_d_bm){}
+  SCE(realT bs_over_bm, realT final_bm, realT max_d_bm, realT min_d_bm, realT ini_d_bm):dBMSet(false),bs_bm(bs_over_bm),target_bm(final_bm),max_change(max_d_bm),min_change(min_d_bm),initial_change(ini_d_bm){}
+
+  // automatic member wise copy sufficient
+  //  SCE(const SCE<realT>& other):dBMSet(false),p(other.p), bs_bm(other.bs_bm),target_bm(other.target_bm),max_change(other.max_change),min_change(other.min_change),initial_change(other.initial_change){}
 
 
   //Overrides from
   //batch:
-  virtual void setParameters(typename SCE<realT>::iterator It);
+  virtual void setParameters(const typename SCE<realT>::iterator& It);
+  virtual const SCE_parameters<realT>& getParameters() const{return p;};
+  virtual SCE<realT>* clone() const;
 
 
   //extra:
@@ -181,17 +193,19 @@ const typename SCE<realT>::complex_type SCE<realT>::two = complex_type(2.0);
 // Implementations:
 //------------------------------------------------------------------------------------------
 
+template<typename realT>
+SCE<realT>* SCE<realT>::clone() const{
+  return new SCE(*this);
+}
+
 /// the cut off is \f$ \Omega^{2n+1} = (2n+1) \pi^{n+1}\frac{2n!}{n!} \f$ for \f$ d = 2n+1 \f$
 template<typename realT>
-void SCE<realT>::setParameters(typename SCE<realT>::iterator It){
-  p = &(*It);
+void SCE<realT>::setParameters(const typename SCE<realT>::iterator& It){
+  p = *It;
 
-  n = floor((p->dim - 1.0) / 2.0);
+  n = floor(p.dim / 2.0);
 
-  //only odd d implemented yet!
-  if(2.0 * n + 1.0 != p->dim){
-    throw runtime_error(string(__FILE__) + string(" : Debeye approximation only implemented for odd dimensions."));
-  }
+  oddDim = p.dim - 2.0 *n > 0.0;
 
   assert (complex_type::PI != 0.0);
 
@@ -200,22 +214,26 @@ void SCE<realT>::setParameters(typename SCE<realT>::iterator It){
     fac *= f * complex_type::PI;
   }
 
-  p->cutOff = pow( (2.0 * n + 1.0) * fac, 1.0 / (2.0 * n + 1.0) );
+  p.cutOff = pow( (2.0 * n + 1.0) * fac, 1.0 / (2.0 * n + 1.0) );
 
 #if DEBUG>=SPAM
-  cout << __FILE__<<" : cutOff = " << p->cutOff << " in dimension " << p->dim<<endl;
+  cout << __FILE__<< " : cutOff = " << p.cutOff << " in dimension " << p.dim << " = 2 * " <<  n;
+  if(oddDim){
+    cout << " + 1.0";
+  }
+  cout  <<endl;
 #endif
 }
 
 template<typename realT>
 realT SCE<realT>::get_extra_parameter(){
-  return p->bm;
+  return p.bm;
 }
 
 template<typename realT>
 void SCE<realT>::set_extra_parameter(realT b){
-  p->bm=b;
-  p->bs = bs_bm * b;
+  p.bm=b;
+  p.bs = bs_bm * b;
   dBMSet=false;
 }
 
@@ -246,72 +264,27 @@ realT SCE<realT>::get_initial_change(){
 
 
 template<typename realT>
-void SCE<realT>::computeInt(){
-
-  Int=0.0;
-
-  if(p->dim==1.0){
-    complex_type D = - two * b;
-    complex_type C = a + two * p->dim * b;
-    complex_type rt= sqrt(C*C - D*D);
-
-#if DEBUG >= SPAM
-    cout << __FILE__ << " : Using exact 1d integral, C=" << C << ", D=" << D <<endl;
-#endif
-
-
-    Int = one / rt;
-    if(abs(C + rt) < abs(D)){//correct branch of sqrt
-      Int*=-one;
-    }
-
-    return;
-
-  }
-
-
-
-  // This implements the Debeye approximation of the integral in question. In d=1 we would have:
-  // \f[
-  //   Int  = \int_0^\Omega \frac{d k}{a+b k^2} = \frac{1}{a}\sqrt{\frac{a}{b}}\arctan\left(\sqrt{\frac{b}{a}}\Omega\right)
-  // \f]
-  // Using the same sqrt twice cancels sign ambiguities. See paper for details about higher d.
-#if DEBUG >= DETAIL
-  cout << __FILE__ << " : Using Debeye approximation for integrals in dimension " << p->dim <<endl;
-#endif
-
-
-  complex_type rt= sqrt(b/a);
-
-  Int = arctanOverX(rt * p->cutOff);
-
-  complex_type pow(1.0);
-  complex_type powAB(1.0);
-
-  for(realT k=0.0;k<n;k++){
-    Int -= pow / (two * k + one);
-    pow *= - b / a * p->cutOff * p->cutOff;
-    powAB *= - a / b;
-  }
-
-  Int *= p->cutOff / a * powAB;
-
-
-}
-
-
-template<typename realT>
 void SCE<realT>::changePoint(const typename SCE<realT>::value_type x){
+  if(x != x)
+    throw std::runtime_error(std::string(__FILE__) + std::string(" : Can not change Point to NaN!"));
+
   dBM = x;
-  BM = one + p->bm * dBM;
+  BM = one + p.bm * dBM;
 
-  p->g = BM * (dBM + one) / p->z;
+  p.g = BM * (dBM + one) / p.z;
 
-  dBS = - p->g * BM * (BM + p->bm) / (p->z + p->bs * p->g * BM * (BM + p->bm));
-  BS = one + p->bs * dBS;
+  dBS = - p.g * BM * (BM + p.bm) / (p.z + p.bs * p.g * BM * (BM + p.bm));
+  BS = one + p.bs * dBS;
 
-  a = p->g * p->z + p->bs * dBS *(one - p->dim);
-  b = - BS * dBS / two / p->dim;
+
+  //#ifdef DIRAC
+  //  a = p.g * p.z;///<Dirac model
+  //#else
+  a = p.g * p.z + p.bs * dBS *(one - p.dim);///< localQ model
+  //#endif
+
+
+  b = - BS * dBS / two / p.dim;
 
   computeInt();
 
@@ -334,20 +307,22 @@ typename SCE<realT>::value_type SCE<realT>::calcF(){
     changePoint(dBM);//make sure internals are up to date
 
 
-  //  return BM;
-  //  return p->g;
-  //  return dBS;
-  // return a + two * p->dim * b;//C
-  // return - two * b; //D
-  //  return a;
-  // return b;
-  //return Int;
-
-  //enforce positive density of states. (There seems to be another solution for \f$ - \bar g \f$.)
-  if(real(p->g)<-1e-10){
+  if(real(p.g)<-1e-10){
     return realT(1e10);
     //    return mpfr::const_infinity(); //inf quickly leads to nan, nan leads to errors, errors lead to suffering... ;)
   }
+
+
+  //  return BM;
+  //  return p.g;
+  //  return dBS;
+  // return a + two * p.dim * b;//C
+  // return - two * b; //D
+  //  return a;
+  // return b;
+  //   return Int;
+
+  //enforce positive density of states. (There seems to be another solution for \f$ - \bar g \f$.)
 
   return BS * Int - one;
   //todo: idea: use log(BS*Int) instead???
@@ -356,67 +331,185 @@ typename SCE<realT>::value_type SCE<realT>::calcF(){
 
 
 template<typename realT>
+void SCE<realT>::computeInt(){
+
+  Int=0.0;
+
+#if USEEXACTINT>0
+  if(p.dim==1.0){
+    complex_type D = - two * b;
+    complex_type C = a + two * p.dim * b;
+    complex_type rt= sqrt(C*C - D*D);
+
+#if DEBUG >= SPAM
+    cout << __FILE__ << " : Using exact 1d integral, C=" << C << ", D=" << D <<endl;
+#endif
+
+
+    Int = one / rt;
+    if(abs(C + rt) < abs(D)){//correct branch of sqrt
+      Int*=-one;
+    }
+
+    return;
+
+  }
+#endif
+
+
+  // This implements the Debeye approximation of the integral in question. In d=1 we would have:
+  // \f[
+  //   Int  = \int_0^\Omega \frac{d k}{a+b k^2} = \frac{1}{a}\sqrt{\frac{a}{b}}\arctan\left(\sqrt{\frac{b}{a}}\Omega\right)
+  // \f]
+  // Using the same sqrt twice cancels sign ambiguities. See paper for details about higher d.
+#if DEBUG >= DETAIL
+  cout << __FILE__ << " : Using Debeye approximation for integrals in dimension " << p.dim <<endl;
+#endif
+
+
+  if(oddDim){
+    complex_type rt= sqrt(b/a);
+
+    Int = arctanOverX(rt * p.cutOff);
+
+    complex_type pow(1.0);
+    complex_type powAB(1.0);
+
+    for(realT k=0.0;k<n;k++){
+      Int -= pow / (two * k + one);
+      pow *= - b / a * p.cutOff * p.cutOff;
+      powAB *= - a / b;
+    }
+
+    Int *= p.cutOff / a * powAB;
+
+  }else{
+    complex_type X = - a / b /p.cutOff / p.cutOff;
+
+    Int = log((X - one)/X);
+
+    complex_type pow(1.0);
+    complex_type powAB(1.0);
+
+    for(realT k=1.0;k<=n;k++){
+      pow /= X;
+      Int += pow / k;
+
+      powAB *= - a / b;
+    }
+
+    Int *= powAB / two / b;
+
+  }
+
+
+}
+
+
+
+template<typename realT>
 typename SCE<realT>::derivative_type SCE<realT>::calcJ(){
 
-  if(real(p->g)<-1e-10){
+  if(real(p.g)<-1e-10){
     return realT(0.0);
   }
 
 
-  complex_type Dg = (one + two * p->bm * dBM + p->bm) / p->z;
+  complex_type Dg = (one + two * p.bm * dBM + p.bm) / p.z;
 
-  complex_type DBM = p->bm;
+  complex_type DBM = p.bm;
 
-  complex_type DdBS = - BS * BS / p->z *(BM * (BM + p->bm) * Dg + p->g * (two * BM + p->bm) * DBM);
+  complex_type DdBS = - BS * BS / p.z *(BM * (BM + p.bm) * Dg + p.g * (two * BM + p.bm) * DBM);
 
-  complex_type Da = p->z * Dg + p->bs * DdBS *(one - p->dim);
-  complex_type Db = - (one + two * p->bs * dBS) * DdBS / two / p->dim;
+  //#ifdef DIRAC
+  //  complex_type Da = p.z * Dg ;///< Dirac model
+  //#else
+  complex_type Da = p.z * Dg + p.bs * DdBS *(one - p.dim);///< local Q model
+  //#endif
+
+  complex_type Db = - (one + two * p.bs * dBS) * DdBS / two / p.dim;
 
   complex_type DInt(0.0);
 
-  if(p->dim == 1.0){
+#if USEEXACTINT>0
+  if(p.dim == 1.0){
     complex_type D = - two * b;
-    complex_type C = a + two * p->dim * b;
+    complex_type C = a + two * p.dim * b;
     complex_type DD = - two * Db;
-    complex_type DC = Da + two * p->dim * Db;
+    complex_type DC = Da + two * p.dim * Db;
     //return DC;
     //    return DD;
     DInt = Int*Int*Int * (D * DD - C * DC);
 
   }else{
-
-    complex_type X = sqrt(b/a) * p->cutOff;
-    complex_type DX = X / two * (Db / b - Da / a);
-
-    DInt = one / (one + X*X) - arctanOverX(X) ;
+#endif
 
 
-    complex_type pow(1.0);
-    complex_type powAB(1.0);
-    for(realT k=1.0;k<n;k++){
-      pow *= X*X;
-      DInt -=  two * k / (two * k + one) * pow;
+    if(oddDim){
 
-      powAB *= - a / b;
+#if DEBUG >= DETAIL
+    cout << __FILE__ << " : Using Debeye approximation for derivatives of integrals in odd dimension " << p.dim <<endl;
+#endif
+
+      complex_type X = sqrt(b/a) * p.cutOff;
+      complex_type DX = X / two * (Db / b - Da / a);
+
+      DInt = one / (one + X*X) - arctanOverX(X) ;
+
+
+      complex_type pow(1.0);
+      complex_type powAB(1.0);
+      for(realT k=0.0;k<n;k++){
+        DInt +=  two * k / (two * k + one) * pow;
+
+        powAB *= - a / b;
+        pow *= X*X;
+      }
+
+      DInt *= p.cutOff / a * powAB * DX / X;
+
+      DInt += Int * ((n - one) * Da / a - n * Db / b);
+
+    }else{
+
+#if DEBUG >= DETAIL
+    cout << __FILE__ << " : Using Debeye approximation for derivatives of integrals in even dimension " << p.dim <<endl;
+#endif
+
+
+      complex_type X = - a / b / p.cutOff/p.cutOff;
+      complex_type DX = X * (Da / a - Db / b);
+
+      DInt = one / (X - one);
+
+      complex_type pow(1.0);
+      complex_type powAB(1.0);
+      for(realT k=1.0;k<=n;k++){
+        pow /= X;
+        DInt -= pow ;
+
+        powAB *= - a / b;
+      }
+
+      DInt *= powAB/two/b *DX/X;
+      DInt += n * Int *(Da/a-Db/b) - Int * Db/b;
+
     }
 
-    powAB *= - a / b;//(-a/b)^n
-
-    DInt *= p->cutOff / a * powAB * DX / X;
-
-    DInt += Int * ((n - one) * Da / a - n * Db / b);
-
+#if USEEXACTINT>0
   }
+#endif
 
 
-  //  return DBM;
+
+  // return DBM;
   //  return Dg;
   //  return DdBS;
   //  return Da;
   // return Db;
-  //return DInt;
+  //    return DInt;
 
-  return Int * DdBS * p->bs + BS * DInt;
+  return Int * DdBS * p.bs + BS * DInt;
 
 }
 
@@ -425,13 +518,13 @@ typename SCE<realT>::derivative_type SCE<realT>::calcJ(){
 template<typename realT>
 typename SCE<realT>::value_type SCE<realT>::guessStartPoint(){
 
-  a = p->z*p->z;
-  b = one / two / p->dim;
+  a = p.z*p.z;
+  b = one / two / p.dim;
 
   computeInt();
 
-  p->g = Int * p->z;
-  dBM = p->g * p->z -one;
+  p.g = Int * p.z;
+  dBM = p.g * p.z -one;
 
   return dBM;
 

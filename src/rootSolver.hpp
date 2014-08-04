@@ -52,6 +52,18 @@ using namespace std;
 
 namespace root_solver{
 
+  /// interface to implement operator<< behaviour
+  class ostream_insertable{
+  public:
+    virtual void insertMeInto(ostream &out) const = 0;		 
+  };
+
+  ostream& operator<< (ostream &out, const ostream_insertable& p){
+    p.insertMeInto(out);
+    return out;
+  }
+
+
   /**
    * This is the general interface for the set of equations \f$ f \mathbb{C}^d \to \mathbb{C}^d$ to be solved.
    * Single and multi root solver specify it further.
@@ -73,6 +85,7 @@ namespace root_solver{
     virtual derivativeT calcJ()=0;
     virtual void changePoint(const valueT x)=0;
     virtual valueT guessStartPoint()=0;
+
   };
 
 

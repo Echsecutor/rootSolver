@@ -67,13 +67,16 @@ using namespace std;
 
 namespace root_solver{
 
+
   template <typename rootSolverT, class parameterSetIterator>
-  class batch_functions : public virtual rootSolverT::functions_type{//be amazed how templates avoid inheritance diamonds here ;)
+  class batch_functions : public virtual rootSolverT::functions_type{
   public:
 
     typedef parameterSetIterator iterator;
 
-    virtual void setParameters(parameterSetIterator It)=0;
+    virtual void setParameters(const parameterSetIterator& It)=0; ///< only read parameters and store them internally
+    virtual const ostream_insertable& getParameters() const = 0;
+    virtual batch_functions* clone() const = 0; ///< make sure to copy all internals
   };
 
 
@@ -124,11 +127,14 @@ namespace root_solver{
   //------------------------------------------------------------------------------------------
 
   template<typename rootSolverT, class parameterSetIterator>
-  int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<rootSolverT,parameterSetIterator> *F, parameterSetIterator It, string outFileName, string outFileHeader, typename rootSolverT::real_type precisionGoal, bool saveIntermediateSteps){
+  int batchSolver<rootSolverT, parameterSetIterator>::childProc(batch_functions<rootSolverT,parameterSetIterator> *f, parameterSetIterator It, string outFileName, string outFileHeader, typename rootSolverT::real_type precisionGoal, bool saveIntermediateSteps){
 
     initScalarType<typename rootSolverT::scalar_type>::ini();
 
     ofstream out;
+
+    //to avoid concurring access:
+    auto F = f->clone();
 
     try {
       out.open(outFileName.c_str());
@@ -145,13 +151,15 @@ namespace root_solver{
 
     out << outFileHeader;
 
-    //run the root finder:
+    // run the root finder:
     F->setParameters(It);
+
+    // children create there own solvers to avoid concurring access
     rootSolverT Solver(F);
     Solver.setStartPoint(F->guessStartPoint());
 
 #if DEBUG>=SPAM
-    cout << __FILE__ << " : Child starts solving for Parameters = " << *It <<endl;
+    cout << __FILE__ << " : Child starts solving for Parameters = " << F->getParameters() <<endl;
 #endif
 
 #if DEBUG>=SPAM
@@ -166,9 +174,9 @@ namespace root_solver{
       state = Solver.step();
       if(saveIntermediateSteps && Solver.getState() == CONTINUE){
 #if DEBUG>=DETAIL
-        cout << __FILE__ << " : saving intermediate: " << Solver.getLastPoint() << "\t" << *It << endl;
+        cout << __FILE__ << " : saving intermediate: " << Solver.getLastPoint() << "\t" << F->getParameters() << endl;
 #endif
-        out << Solver.getLastPoint() << "\t" << *It << endl;
+        out << Solver.getLastPoint() << "\t" <<  F->getParameters() << endl;
       }
 #if DEBUG>=SPAM
       steps++;
@@ -179,17 +187,17 @@ namespace root_solver{
 #if DEBUG>=STATUS
     if (Solver.getState()==SUCCESS){
       cout << __FILE__ << " : The solver found an approximate root. ";
-      cout << "at Parameters = " << *It <<endl<<endl;
+      cout << "at Parameters = " << F->getParameters() <<endl<<endl;
     }else{
       cout << __FILE__ << " : The solver got stuck at z =\n" << Solver.getLastPoint() << "\nwhere f =\n" << Solver.getLastValue()<<endl;
-      cout << __FILE__ << " : Parameters = " << *It <<endl<<endl;
+      cout << __FILE__ << " : Parameters = " << F->getParameters() <<endl<<endl;
     }
 #endif
 
     if (Solver.getState()==SUCCESS){
-      out << Solver.getLastPoint() << "\t" << *It << endl;
+      out << Solver.getLastPoint() << "\t" << F->getParameters() << endl;
     }else{
-      out << "#Could not find a root for Parameters = " << *It << endl;
+      out << "#Could not find a root for Parameters = " << F->getParameters() << endl;
     }
 
     out.close();

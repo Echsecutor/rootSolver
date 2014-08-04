@@ -127,19 +127,20 @@ int main(int args, char *arg[]){
   cout <<endl << __FILE__ << " : Starting Multi Root Solver Extrapolation Batch Test."<<endl<<endl;
 
 
-  polyParams<realT>* para = new polyParams<realT>();
-  para->maxDegree = maxTotalDegree;
-  PSI<dim,realT> it(para);
+  polyParams<realT> para;
+  para.maxDegree = maxTotalDegree;
+  para.dim=dim;
+  PSI<realT> it(para);
   ++it;//randomise
   it.counter=0;//reset counter
-  PSI<dim,realT> end(NULL);
+  PSI<realT> end(para);
   end.counter=batchRuns;
-  batch_extra_polynomials<dim,realT> *F = new batch_extra_polynomials<dim,realT>(&(*it));
+  polynomials<dim,realT> *F = new polynomials<dim,realT>(*it);
 
 
   typedef multiRootSolver<root_solver::complex<realT>,dim> MRS;
   typedef extraSolver<MRS,realT> extraMRS;
-  typedef batchSolver<extraMRS, PSI<dim,realT> > batchExtraMRS;
+  typedef batchSolver<extraMRS, PSI<realT> > batchExtraMRS;
 
   batchExtraMRS::run(nThreads,  F, it, end, outFileName + "-MRS","#Solutions of some random multi-dimensional polynomial equations\n", epsilon);
 
@@ -149,16 +150,17 @@ int main(int args, char *arg[]){
 
   typedef singleRootSolver<realT > SRS;
   typedef extraSolver<SRS,realT> extraSRS;
-  typedef batchSolver<extraSRS, PSI<1> > batchExtraSRS;
+  typedef batchSolver<extraSRS, PSI< realT> > batchExtraSRS;
 
 
-  para->maxDegree = maxTotalDegree;
-  PSI<1> itOne(para);
+  para.maxDegree = maxTotalDegree;
+  para.dim=1;
+  PSI< realT> itOne(para);
   ++itOne;//randomise
   itOne.counter=0;//reset counter
-  PSI<1> endOne(NULL);
+  PSI<realT> endOne(para);
   endOne.counter=batchRuns;
-  batch_extra_polynomial<realT> *FOne = new batch_extra_polynomial<realT>(&(*itOne));
+  polynomial<realT> *FOne = new polynomial<realT>(*itOne);
 
 
   batchExtraSRS::run(nThreads, FOne, itOne, endOne, outFileName + "-SRS","#Solutions of some random polynomial equation\n", epsilon);
