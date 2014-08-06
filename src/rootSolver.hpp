@@ -124,7 +124,7 @@ namespace root_solver{
   static const solver_state SUCCESS(0); ///< root was found within the given accuracy
   static const solver_state INIT(1); ///< fully initialised, no step made
   static const solver_state CONTINUE(2); ///< Solving in progress, required accuracy not yet reached
-  static const solver_state REJECT(3); ///< Solving in progress, required accuracy not yet reached
+  static const solver_state REJECT(3); ///< newAbsF > oldAbsF 
 
 
 

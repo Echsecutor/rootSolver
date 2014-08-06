@@ -69,7 +69,7 @@ int main(int args, char *arg[]){
   real_type bsbm = 1.0;
 
   //  real_type bmTarget=0.14;
-  real_type bmTarget=1e-1;
+  real_type bmTarget=1e-3;
   real_type Db(1.0);
   real_type maxDb(1.0);
   real_type minDb(1.0);

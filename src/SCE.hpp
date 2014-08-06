@@ -1,7 +1,7 @@
 /**
  * @file SCE.hpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0.2014-06-11
+ * @version 1.0.2014-08-05
  *
  * @section DESCRIPTION
  *
@@ -72,7 +72,7 @@ public:
   typedef root_solver::complex<realT> complex_type;
 
   realT dim;
-  realT bs, bm, cutOff;
+  realT bs, bm, cutOff, cutOffD;
   root_solver::complex<realT> z,g;
 
   SCE_parameters():dim(0),bs(0),bm(0),cutOff(0),z(0.0),g(0.0){}
@@ -96,6 +96,7 @@ public:
     re = re && this->bs == rhs.bs;
     re = re && this->bm == rhs.bm;
     re = re && this->cutOff == rhs.cutOff;
+    re = re && this->cutOffD == rhs.cutOffD;
     re = re && this->z == rhs.z;
     re = re && this->g == rhs.g;
     return re;
@@ -198,14 +199,32 @@ SCE<realT>* SCE<realT>::clone() const{
   return new SCE(*this);
 }
 
+
+//todo: quick n dirty, should go into apropriate trait
+template<typename realT>
+int toDouble(realT x){
+  return (double) x;
+}
+
+template<>
+int toDouble<mpfr::mpreal>(mpfr::mpreal x){
+  return x.toDouble();
+}
+
+
 /// the cut off is \f$ \Omega^{2n+1} = (2n+1) \pi^{n+1}\frac{2n!}{n!} \f$ for \f$ d = 2n+1 \f$
 template<typename realT>
 void SCE<realT>::setParameters(const typename SCE<realT>::iterator& It){
   p = *It;
 
-  n = floor(p.dim / 2.0);
+  int iDim = floor(toDouble<realT>(p.dim));
 
-  oddDim = p.dim - 2.0 *n > 0.0;
+  if((realT)((double)iDim) != p.dim){
+    throw std::runtime_error(string(__FILE__)+string(" : I cant cast the real data type to int properly... o0"));
+  }
+
+  n = (double) floor((iDim-1) / 2);
+  oddDim = (iDim % 2 == 1);
 
   assert (complex_type::PI != 0.0);
 
@@ -214,12 +233,17 @@ void SCE<realT>::setParameters(const typename SCE<realT>::iterator& It){
     fac *= f * complex_type::PI;
   }
 
+
   p.cutOff = pow( (2.0 * n + 1.0) * fac, 1.0 / (2.0 * n + 1.0) );
 
+  p.cutOffD = pow(p.cutOff, p.dim);
+
 #if DEBUG>=SPAM
-  cout << __FILE__<< " : cutOff = " << p.cutOff << " in dimension " << p.dim << " = 2 * " <<  n;
-  if(oddDim){
-    cout << " + 1.0";
+  cout << __FILE__<< " : cutOff ^d = " << p.cutOff << " ^ d = " << p.cutOffD << " in dimension d = " << p.dim <<  " = 2 * " <<  n;
+  if(!oddDim){
+    cout << " + 2";
+  }else{
+    cout << " + 1";
   }
   cout  <<endl;
 #endif
@@ -312,7 +336,6 @@ typename SCE<realT>::value_type SCE<realT>::calcF(){
     //    return mpfr::const_infinity(); //inf quickly leads to nan, nan leads to errors, errors lead to suffering... ;)
   }
 
-
   //  return BM;
   //  return p.g;
   //  return dBS;
@@ -320,7 +343,7 @@ typename SCE<realT>::value_type SCE<realT>::calcF(){
   // return - two * b; //D
   //  return a;
   // return b;
-  //   return Int;
+  //    return Int;
 
   //enforce positive density of states. (There seems to be another solution for \f$ - \bar g \f$.)
 
@@ -330,6 +353,10 @@ typename SCE<realT>::value_type SCE<realT>::calcF(){
 }
 
 
+/// (Approximation of)
+/// \f[
+///   Int  = \int_{[0,2\pi]^d} \frac{d^{d} k}{(2 \pi)^d} \frac{1}{a + b 2(d - \sum_{i=1}^d \cos(k_i))} \approx \frac{d}{\Omega^d} \int_0^\Omega \frac{k^{d-1} d k}{a + b k^2}
+/// \f]
 template<typename realT>
 void SCE<realT>::computeInt(){
 
@@ -337,6 +364,7 @@ void SCE<realT>::computeInt(){
 
 #if USEEXACTINT>0
   if(p.dim==1.0){
+
     complex_type D = - two * b;
     complex_type C = a + two * p.dim * b;
     complex_type rt= sqrt(C*C - D*D);
@@ -357,17 +385,18 @@ void SCE<realT>::computeInt(){
 #endif
 
 
-  // This implements the Debeye approximation of the integral in question. In d=1 we would have:
-  // \f[
-  //   Int  = \int_0^\Omega \frac{d k}{a+b k^2} = \frac{1}{a}\sqrt{\frac{a}{b}}\arctan\left(\sqrt{\frac{b}{a}}\Omega\right)
-  // \f]
-  // Using the same sqrt twice cancels sign ambiguities. See paper for details about higher d.
+
+  if(oddDim){
+
 #if DEBUG >= DETAIL
-  cout << __FILE__ << " : Using Debeye approximation for integrals in dimension " << p.dim <<endl;
+  cout << __FILE__ << " : Using Debeye approximation for integrals in odd dimension " << p.dim <<endl;
 #endif
 
 
-  if(oddDim){
+    // \f[
+    //   Int  = \int_0^\Omega \frac{d^{2n} k}{a + b k^2}
+    // \f]
+
     complex_type rt= sqrt(b/a);
 
     Int = arctanOverX(rt * p.cutOff);
@@ -384,6 +413,15 @@ void SCE<realT>::computeInt(){
     Int *= p.cutOff / a * powAB;
 
   }else{
+
+#if DEBUG >= DETAIL
+  cout << __FILE__ << " : Using Debeye approximation for integrals in even dimension " << p.dim <<endl;
+#endif
+
+    // \f[
+    //   Int  = \int_0^\Omega \frac{d^{2n + 1} k}{a + b k^2}
+    // \f]
+
     complex_type X = - a / b /p.cutOff / p.cutOff;
 
     Int = log((X - one)/X);
@@ -402,6 +440,8 @@ void SCE<realT>::computeInt(){
 
   }
 
+
+  Int *= p.dim / p.cutOffD;
 
 }
 
@@ -448,7 +488,7 @@ typename SCE<realT>::derivative_type SCE<realT>::calcJ(){
     if(oddDim){
 
 #if DEBUG >= DETAIL
-    cout << __FILE__ << " : Using Debeye approximation for derivatives of integrals in odd dimension " << p.dim <<endl;
+      cout << __FILE__ << " : Using Debeye approximation for derivatives of integrals in odd dimension " << p.dim <<endl;
 #endif
 
       complex_type X = sqrt(b/a) * p.cutOff;
@@ -468,12 +508,14 @@ typename SCE<realT>::derivative_type SCE<realT>::calcJ(){
 
       DInt *= p.cutOff / a * powAB * DX / X;
 
+      DInt *= p.dim / p.cutOffD;
+
       DInt += Int * ((n - one) * Da / a - n * Db / b);
 
     }else{
 
 #if DEBUG >= DETAIL
-    cout << __FILE__ << " : Using Debeye approximation for derivatives of integrals in even dimension " << p.dim <<endl;
+      cout << __FILE__ << " : Using Debeye approximation for derivatives of integrals in even dimension " << p.dim <<endl;
 #endif
 
 
@@ -492,10 +534,12 @@ typename SCE<realT>::derivative_type SCE<realT>::calcJ(){
       }
 
       DInt *= powAB/two/b *DX/X;
+      DInt *= p.dim / p.cutOffD;
       DInt += n * Int *(Da/a-Db/b) - Int * Db/b;
 
     }
 
+ 
 #if USEEXACTINT>0
   }
 #endif
@@ -525,6 +569,9 @@ typename SCE<realT>::value_type SCE<realT>::guessStartPoint(){
 
   p.g = Int * p.z;
   dBM = p.g * p.z -one;
+
+  if(real(p.g)<0.0)
+    throw std::runtime_error(string(__FILE__)+string(" : exact starting point must not have real(p.g) < 0 !"));
 
   return dBM;
 

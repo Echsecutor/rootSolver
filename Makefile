@@ -4,7 +4,7 @@
 # @version 1.0.2014-06-11
 #
 # @section Version number format
-#
+ #
 # The Version number is formatted as "M.S.D" where M is the major
 # release branch (backward compatibility to all non-alpha releases of
 # the same branch is guaranteed), S is the state of this release (0
@@ -55,7 +55,7 @@ VPATH = $(SRCDIR):$(TESTDIR)
 
 #constructionSite: clean selfconsistencyEquations.out
 
-all: folders testComplex.out testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out derivativeVerification.out selfconsistencyEquations.out
+all: folders testEigen.out testComplex.out testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out derivativeVerification.out selfconsistencyEquations.out
 	@-mv *.dat $(TESTDIR) 2>/dev/null
 	@echo 
 	@echo "[OK]		All tests Passed! :D"
@@ -64,15 +64,11 @@ all: folders testComplex.out testSRS.out testMRS.out testBatch.out testExtraData
 
 ## production:
 
-## Multithreading is turned off until 
-## https://github.com/Echsecutor/rootSolver/issues/9
-## is resolved.
-
 SCE-approx: selfconsistencyEquations.cpp
-	$(CC) -DUSEEXACTINT=0 -DMULTITHREADED=0 -DDEBUG=3 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
+	$(CC) -DUSEEXACTINT=0 -DMULTITHREADED=1 -DDEBUG=3 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
 
 SCE: selfconsistencyEquations.cpp
-	$(CC) -DMULTITHREADED=0 -DDEBUG=3 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
+	$(CC) -DMULTITHREADED=1 -DDEBUG=3 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
 
 
 

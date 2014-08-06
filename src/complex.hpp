@@ -414,14 +414,14 @@ namespace Eigen{
      ****************************************************************************/
 
 
-    template<typename RealScalar>
+    /*    template<typename RealScalar>
     struct abs_impl<root_solver::complex<RealScalar> >
     {
       static inline RealScalar run(const root_solver::complex<RealScalar>& x)
       {
         return x.abs();
       }
-    };
+      };*/
 
     /****************************************************************************
      * Implementation of abs2
