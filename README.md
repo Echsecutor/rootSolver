@@ -7,9 +7,12 @@ Internally, [eigen](http://eigen.tuxfamily.org) is used to solve the linear equa
 
 ### License
 
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version, see LICENSE.
+This program, i.e. all code written by Sebastian Schmittner and found outside the worksWith directory is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version, see LICENSE.
 
 Let me know if this license doesn't work for you.
+
+
+The code under `worksWith` is a copy of (an old version of) [Eigen](http://eigen.tuxfamily.org), which is primarily MPL2 licensed, and [mpreal](http://www.holoborodko.com/pavel/mpfr/), licensed under GPL2.1. Copies of these are included due to compatibility issues with newer versions. For details about licenses check the respective files `worksWith/eigen3/COPYING.README` and `worksWith/mpreal.h`. 
 
 ### Version
 
