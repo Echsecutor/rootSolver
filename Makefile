@@ -19,37 +19,33 @@
 # 
 # 
 
-export SHELL = /bin/sh
+#export SHELL = /bin/sh
 .SUFFIXES:
 .SUFFIXES: .cpp .o .out
 
-MAKEFLAGS+= -w -e
+#MAKEFLAGS+= -w -e
 
-export ROOTDIR := $(shell pwd)
+ROOTDIR := $(shell pwd)
 
-export BINDIR = $(ROOTDIR)/bin
-export SRCDIR = $(ROOTDIR)/src
-export TESTDIR = $(ROOTDIR)/test-out
-export TESTCASES = $(ROOTDIR)/test-in
+BINDIR = $(ROOTDIR)/bin
+SRCDIR = $(ROOTDIR)/src
+TESTDIR = $(ROOTDIR)/test-out
+TESTCASES = $(ROOTDIR)/test-in
 
 
-export CC = g++
+CC := g++
 
 # notice that "eigen3/..." and mpreal.h need to be included
-LOCALINCLUDES=-I$(HOME)/include
+LOCALINCLUDES = -I$(ROOTDIR)/worksWith -I$(ROOTDIR)/worksWith/eigen3
 
 DEBUGFLAGS=-D DEBUG=11
-#-g
-export CFLAGS = -Wall -Werror -ansi -pedantic -std=c++0x -pthread $(LOCALINCLUDES)
+
+CFLAGS = -Wall -Werror -ansi -pedantic -std=c++0x -pthread $(LOCALINCLUDES)
 #-Wfatal-errors
 
-MPREALLIBS=-lgmpxx -lgmp -lmpfr
+MPREALLIBS = -lgmpxx -lgmp -lmpfr
 
-export LDFLAGS = $(MPREALLIBS)
-
-
-export PREFLAGS =
-# -D MULTITHREADED=0 -D DEBUG=1
+LDFLAGS = $(MPREALLIBS)
 
 VPATH = $(SRCDIR):$(TESTDIR)
 
