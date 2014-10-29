@@ -34,6 +34,9 @@
 #include <sstream>
 #include <stdexcept>
 
+#include <random>
+#include <chrono>
+
 
 using namespace std;
 
@@ -84,9 +87,6 @@ namespace root_solver{
     typedef typename root_solver_type::value_type value_type;
 
   protected:
-
-    real_type epsZ;
-    real_type epsF;
 
     void update();
 
@@ -161,6 +161,39 @@ namespace root_solver{
     this->J = this->calc->calcJ();
     if(!(this->J == this->J)){//nan
       throw runtime_error(string(__FILE__) + string(" : derivative evaluation failed."));
+    }
+
+
+    if(this->J == 0){
+      real_type c=1.0;
+      default_random_engine* gen;
+      normal_distribution<double> nd;
+      int seed = chrono::system_clock::now().time_since_epoch().count();
+      gen = new default_random_engine(seed);
+      scalar_type actualZ = this->z;
+      real_type dx = this->getMinStepSize();
+      if(dx==0){
+	dx= abs(this->z)*1e-2;
+      }
+      if(dx<1e-10){
+	dx=1e-10;
+      }
+      while(this->J == 0.0){
+#if DEBUG >= WARN
+        cout << __FILE__ << " : I encountered a point with vanishing derivative. I will try to wiggle a little (scale = " << dx << ") away, but the solution found this way is likely very unstable."<<endl;
+#endif
+        this->z = actualZ + dx * nd(*gen);
+        update();
+        this->J = this->calc->calcJ();
+        if(!(this->J == this->J)){//nan
+          throw runtime_error(string(__FILE__) + string(" : derivative evaluation failed."));
+        }
+        if(c>100.0){
+          throw runtime_error(string(__FILE__) + string(" : I can not find a point with non zero derivative."));
+        }
+        c++;
+	dx*=2;
+      }
     }
 
 #if DEBUG >= SPAM

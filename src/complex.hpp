@@ -358,7 +358,7 @@ namespace root_solver{
   //using log
   template<typename realT>
   complex<realT> atan(complex<realT> x){
-    return complex<realT>::I * (log(realT(1.0) - complex<realT>::I * x) - log(realT(1.0) + complex<realT>::I * x)) / realT(2.0);
+    return complex<realT>::I * log((realT(1.0) - complex<realT>::I * x)/(realT(1.0) + complex<realT>::I * x)) / realT(2.0);
   }
 
 

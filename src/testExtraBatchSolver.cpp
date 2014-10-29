@@ -130,10 +130,10 @@ int main(int args, char *arg[]){
   polyParams<realT> para;
   para.maxDegree = maxTotalDegree;
   para.dim=dim;
-  PSI<realT> it(para);
+  PSI<realT> it(&para);
   ++it;//randomise
   it.counter=0;//reset counter
-  PSI<realT> end(para);
+  PSI<realT> end(&para);
   end.counter=batchRuns;
   polynomials<dim,realT> *F = new polynomials<dim,realT>(*it);
 
@@ -155,10 +155,10 @@ int main(int args, char *arg[]){
 
   para.maxDegree = maxTotalDegree;
   para.dim=1;
-  PSI< realT> itOne(para);
+  PSI< realT> itOne(&para);
   ++itOne;//randomise
   itOne.counter=0;//reset counter
-  PSI<realT> endOne(para);
+  PSI<realT> endOne(&para);
   endOne.counter=batchRuns;
   polynomial<realT> *FOne = new polynomial<realT>(*itOne);
 

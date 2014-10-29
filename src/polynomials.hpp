@@ -160,12 +160,13 @@ public:
     if(m==0){
       out << "polyParams: uninitialised!";
     }else{
-      out << "polyParams: dim = " << dim << ",maxDegree = " << maxDegree;
+      out << "polyParams: dim = " << dim << ", maxDegree = " << maxDegree;
       //      out << ", m = " << m <<endl;
       if(zeros[0][0][0] !=0){
         out << ", first zero: *" << zeros[0][0][0] << " = " << zeros[0][0][0][0];
       }else{
-        cout << "zeros[0][0][0] ==0";
+        cout << ", zeros[0][0][0] == 0 i.e. uninitialised.";
+        cout << ", degree[0][0][0] = " << degree[0][0][0]<<endl;
       }
     }
   }
@@ -232,6 +233,9 @@ public:
         zeros[j][i] = new root_solver::complex<realT> *[dim];
         for(int k=0;k<dim;k++){
           degree[j][i][k]=rand() % (totalDegreeLeft+1);
+	  if(k==dim-1 && i == m[j]-1 && j == dim-1)
+	    degree[j][i][k]=totalDegreeLeft;
+
           totalDegreeLeft -= degree[j][i][k];
           if(degree[j][i][k]>0){
             zeros[j][i][k] = new root_solver::complex<realT>[degree[j][i][k]];
@@ -248,7 +252,7 @@ public:
       }
     }
 
-    //    cout << __FILE__ << " : after randomising : " << *this << endl;
+    cout << __FILE__ << " : after randomising : " << *this << endl;
 
   }
 
@@ -264,16 +268,16 @@ public:
 template <typename realT>
 class PSI : public iterator<std::input_iterator_tag, polyParams<realT>>{
  private:
-  polyParams<realT> p;
+  polyParams<realT>* p;
  public:
   int counter;
-  PSI(polyParams<realT> x):p(x),counter(0){}
+  PSI(polyParams<realT>* x):p(x),counter(0){}
   PSI(const PSI& p2):p(p2.p),counter(p2.counter){}
-  PSI& operator++() {this->p.randomiseTestcase();this->counter++;return *this;}
+  PSI& operator++() {this->p->randomiseTestcase();this->counter++;return *this;}
   PSI operator++(int) {PSI tmp(*this); operator++(); return tmp;}
   bool operator==(const PSI& rhs) {return this->counter == rhs.counter;}
   bool operator!=(const PSI& rhs) {return !operator==(rhs);}
-  polyParams<realT> const& operator*() const{return this->p;}
+  polyParams<realT> const& operator*() const{return *(this->p);}
 };
 
 

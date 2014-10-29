@@ -30,7 +30,8 @@
 /// change the following to adapt the internal precision
 //typedef long double real_type;
 
-#define MPREALPRECISION 256
+//#define MPREALPRECISION 256
+#define MPREALPRECISION 512
 
 #include "complexMprealWrapper.hpp"
 using namespace mpfr;
@@ -66,32 +67,73 @@ using namespace root_solver;
 
 
 
+struct confInfo{
+  const char * confFile;
+
+  const char * outDatFile;
+  const char * inDatFile;
+
+  real_type dim;
+
+  real_type epsilon;
+
+  real_type as;
+  real_type am;
+
+  real_type fromOmega;
+  real_type toOmega;
+  real_type DOmega;
+
+  bool logStep;
+
+  real_type initialDb;
+  real_type maxDb;
+  real_type minDb;
+
+  disorder<real_type> b;
+
+  approach_mode approach;
+
+  real_type precisionGoal;
+  int desiredNrSteps;
+
+  int NThreads;
+
+  bool onlySaveGoal;
+
+  confInfo():
+    confFile(0),
+    outDatFile(0),
+    inDatFile(0),
+    dim(3),
+    epsilon(1e-14),
+    as(1.0),//alpha_s
+    am(1.0),//alpha_m
+    fromOmega(1e-5),
+    toOmega (1),
+    DOmega (1e-5),
+    logStep(true),///< toggle wether omega points are equally spaced on a linear or a log scale
+    initialDb(1e-8),///< initial b step size, dynamically adapted
+    maxDb(1e-3),///< sets a minimal resolution in b
+    minDb(1e-20),///< avoid getting stuck
+    b(),
+    approach(MANHATTANMAD),
+    precisionGoal(1e-18),
+    desiredNrSteps(64),
+    NThreads(4),
+    onlySaveGoal(true){b.mass.mix=2.0;b.mass.add=2.0;b.spring.mix=2.0;b.spring.add=2.0;}
+
+};
 
 
-void readFile(const char * confFile,
-              real_type &bmTarget,
-              real_type &initialDb,
-              real_type &epsilon,
-              real_type &precisionGoal,
-              int &desiredNrSteps,
-              real_type &maxDb,
-	      real_type &fromOmega,
-	      real_type &toOmega,
-	      real_type &DOmega,
-	      int &NThreads,
-	      bool &onlySaveGoal,
-	      real_type &minDb,
-	      real_type &dim,
-	      bool &logStep,
-	      real_type &bsbm
-              ){
+void readFile(confInfo& I){
 
   //  logger::write(string("Reading parameters from ") + string(confFile), STATUS, __FILE__, logger::removePath);
 #if DEBUG>=STATUS
-  cout << __FILE__ << " : Reading parameters from " <<confFile<<endl;
+  cout << __FILE__ << " : Reading parameters from " <<I.confFile<<endl;
 #endif
 
-  ifstream conf(confFile);
+  ifstream conf(I.confFile);
   string line;
   if (!conf.is_open()){
     cerr<< "ERR could not open conf File" <<endl;
@@ -109,36 +151,52 @@ void readFile(const char * confFile,
       para = strtok(cstr,"=");
       val = strtok(NULL,"=");
 
-      if(strcmp(para,"bmTarget")==0){
-        bmTarget=atof(val);
+      if(strcmp(para,"bsMAD")==0||strcmp(para,"b_spring_mix")==0){
+        I.b.spring.mix=atof(val);
+      }else if(strcmp(para,"bsADD")==0 || strcmp(para,"b_spring_add")==0){
+        I.b.spring.add=atof(val);
+      }else if(strcmp(para,"bmADD")==0 || strcmp(para,"b_mas_add")==0){
+        I.b.mass.add=atof(val);
+      }else if(strcmp(para,"bmMAD")==0 || strcmp(para,"b_mas_mix")==0){
+        I.b.mass.mix=atof(val);
       }else if(strcmp(para,"initialDb")==0){
-        initialDb=atof(val);
-      }else if(strcmp(para,"bsbm")==0){
-        bsbm=atof(val);
+        I.initialDb=atof(val);
       }else if(strcmp(para,"epsilon")==0){
-        epsilon=atof(val);
+        I.epsilon=atof(val);
       }else if(strcmp(para,"precisionGoal")==0){
-        precisionGoal=atof(val);
+        I.precisionGoal=atof(val);
       }else if(strcmp(para,"desiredNrSteps")==0){
-        desiredNrSteps=atoi(val);
+        I.desiredNrSteps=atoi(val);
       }else if(strcmp(para,"maxDb")==0){
-        maxDb=atof(val);
+        I.maxDb=atof(val);
       }else if(strcmp(para,"fromOmega")==0){
-        fromOmega=atof(val);
+        I.fromOmega=atof(val);
       }else if(strcmp(para,"toOmega")==0){
-        toOmega=atof(val);
+        I.toOmega=atof(val);
       }else if(strcmp(para,"DOmega")==0){
-        DOmega=atof(val);
+        I.DOmega=atof(val);
       }else if(strcmp(para,"NThreads")==0){
-        NThreads=atoi(val);
+        I.NThreads=atoi(val);
       }else if(strcmp(para,"onlySaveGoal")==0){
-        onlySaveGoal=(bool)atoi(val);
+        I.onlySaveGoal=(bool)atoi(val);
       }else if(strcmp(para,"minDb")==0){
-        minDb=atof(val);
+        I.minDb=atof(val);
       }else if(strcmp(para,"dim")==0){
-        dim=(real_type)atoi(val);
+        I.dim=(real_type)atoi(val);
       }else if(strcmp(para,"logStep")==0){
-        logStep=(bool)atoi(val);
+        I.logStep=(bool)atoi(val);
+      }else if(strcmp(para,"as")==0){
+        I.as=atof(val);
+      }else if(strcmp(para,"am")==0){
+        I.am=atof(val);
+      }else if(strcmp(para,"approach")==0){
+        if(atoi(val)==0){
+          I.approach=STRAIGHT;
+        }else if(atoi(val)==1){
+          I.approach=MANHATTANMAD;
+        }else{
+          I.approach=MANHATTANM;
+        }
       }
       else{
 #if DEBUG>=ERR
@@ -169,10 +227,7 @@ int main(int args, char *arg[]){
   cout.precision(5);
   cout << std::scientific;
 
-  char * cnfFile=0;
-  //  char * inDatFile=0;
-  const char * outDatFile=0;
-
+  confInfo I;
 
   //------------------------------------------------------------------------------------------
   // reading parameters and conf file
@@ -182,92 +237,70 @@ int main(int args, char *arg[]){
     if(strcmp(arg[i],"-h")==0||strcmp(arg[1],"--help")==0){
       help();
     }else if(strcmp(arg[i],"-c")==0){
-      cnfFile=arg[i+1];
+      I.confFile = arg[i+1];
       i++;
-    // }else if(strcmp(arg[i],"-r")==0){
-    //   inDatFile=arg[i+1];
-    //   i++;
+    }else if(strcmp(arg[i],"-r")==0){
+      I.inDatFile = arg[i+1];
+      i++;
     }else if(strcmp(arg[i],"-o")==0){
-      outDatFile=arg[i+1];
+      I.outDatFile = arg[i+1];
       i++;
     }else if (arg[i][0]=='-'){
       cout << "Unrecognised option " << arg[i] <<endl;
-    }else if (cnfFile==0){
-      cnfFile=arg[i];
+    }else if (I.confFile==0){
+      I.confFile = arg[i];
     }else{
-      outDatFile=arg[i];
+      I.outDatFile = arg[i];
     }
   }
 
-  if(cnfFile==0){
+  if(I.confFile==0){
     help();
   }
 
   string outFilePrefix="SCE-solutions__";
 
-  if(outDatFile!=0){
-    outFilePrefix = outDatFile;
+  if(I.outDatFile!=0){
+    outFilePrefix = I.outDatFile;
   }
 
-  real_type dim=1;
-  real_type epsilon = 1e-9;
-  real_type bsbm = 1.0;
-
-  real_type fromOmega = 1e-3;
-  real_type toOmega = 2;
-  real_type DOmega = 1e-1;
-
-  bool logStep=false;///< toggle wether omega points are equally spaced on a linear or a log scale
-
-  real_type bmTarget=1e-2;///< will extrapolate from b=0 or from file towards bNuGoal
-  real_type Db=1e-8;///< initial b step size, dynamically adapted
-  real_type maxDb=1e-3;///< sets a minimal resolution in b 
-  real_type minDb=1e-10;///< avoid getting stuck
-
-  real_type precisionGoal=1e-12;
-  int desiredNrSteps=64;
-
-  int NThreads=8;
-
-  bool onlySaveGoal=true;
 
 
-  readFile(cnfFile,bmTarget,Db,epsilon,precisionGoal,desiredNrSteps,maxDb,fromOmega,toOmega,DOmega,NThreads,onlySaveGoal,minDb,dim,logStep,bsbm);
+  readFile(I);
 
   cout << __FILE__ << " : Start solving saddle point equations for"<<endl;
-  cout << "dim = " << dim <<endl;
-  cout << "bs / bm = " << bsbm <<endl;
-  cout << "epsilon = " << epsilon <<endl;
-  cout << "fromOmega = " << fromOmega <<endl;
-  cout << "toOmega = " << toOmega <<endl;
-  cout << "DOmega = " << DOmega <<endl;
-  cout << "logStep = " << logStep <<endl;
-  cout << "bmTarget = " << bmTarget <<endl;
-  cout << "Db = " << Db <<endl;
-  cout << "precisionGoal = " << precisionGoal<<endl;
-  cout << "desiredNrSteps = " << desiredNrSteps <<endl;
-  cout << "maxDb = " << maxDb <<endl;
-  cout << "NThreads = " << NThreads <<endl;
-  cout << "onlySaveGoal = " << onlySaveGoal <<endl;
-  cout << endl;
+  cout << "dim = " << I.dim <<endl;
+  cout << "b_m^+ = " << I.b.mass.add <<endl;
+  cout << "b_m^x = " << I.b.mass.mix <<endl;
+  cout << "b_s^+ = " << I.b.spring.add <<endl;
+  cout << "b_s^x = " << I.b.spring.mix <<endl;
+  cout << "approach = " << I.approach <<endl;
+  cout << "alpha_s = " << I.as <<endl;
+  cout << "alpha_m = " << I.am <<endl;
+  cout << "epsilon = " << I.epsilon <<endl;
+  cout << "fromOmega = " << I.fromOmega <<endl;
+  cout << "toOmega = " << I.toOmega <<endl;
+  cout << "DOmega = " << I.DOmega <<endl;
+  cout << "logStep = " << I.logStep <<endl;
+  cout << "initialDb = " << I.initialDb <<endl;
+  cout << "precisionGoal = " << I.precisionGoal<<endl;
+  cout << "desiredNrSteps = " << I.desiredNrSteps <<endl;
+  cout << "maxDb = " << I.maxDb <<endl;
+  cout << "NThreads = " << I.NThreads <<endl;
+  cout << "onlySaveGoal = " << I.onlySaveGoal <<endl;
+  cout << "\n\n" << endl;
 
   cout << "The parameter format is\n" << SCE_parameters<real_type>::getFormat() <<endl<<endl;
 
-#if DEBUG>=WARN
-  if (precisionGoal < 1e-12){
-    cout << __FILE__ << " : CAUTION! Precision goal is very small. Function evaluation should not be expected to be precise to more than 1e-12!" << endl;
-  }
-#endif
-
 
 
 #if DEBUG>=WARN
-  if(precisionGoal < 1e3 * numeric_limits<real_type>::epsilon()){
-    cout << __FILE__ << " : CAUTION! Precision goal " << precisionGoal << " is close to the lower machine precision error bound " << numeric_limits<real_type>::epsilon() <<endl;
+  if(I.precisionGoal < 1e3 * numeric_limits<real_type>::epsilon()){
+    cout << __FILE__ << " : CAUTION! Precision goal " << I.precisionGoal << " is close to the lower machine precision error bound " << numeric_limits<real_type>::epsilon() <<endl;
   }
 #endif
 
-  if(precisionGoal < numeric_limits<real_type>::epsilon()){
+  if(I.precisionGoal < numeric_limits<real_type>::epsilon()){
     throw runtime_error(string(__FILE__) + string(" : Precision goal is lower than machine precision. Recompile this solver with higher internal precision!"));
   }
 
@@ -276,31 +309,40 @@ int main(int args, char *arg[]){
   cout << __FILE__ << " : Initialising parameter list..."<<endl;
 #endif
   list <SCE_parameters<real_type> > params;
-  real_type omega=fromOmega;
-  while(omega < toOmega){
-    params.push_back(SCE_parameters<real_type>(dim, SCE_parameters<real_type>::complex_type(epsilon, omega)));
+  real_type omega = I.fromOmega;
+  while(omega < I.toOmega){
+    params.push_back(SCE_parameters<real_type>(I.dim, SCE_parameters<real_type>::complex_type(I.epsilon, omega)));
+    params.back().as = I.as;
+    params.back().am = I.am;
 
-    omega += DOmega;
+    omega += I.DOmega;
 
-    if(logStep){
-      DOmega = omega * omega / (omega - DOmega) - omega;
+    if(I.logStep){
+      I.DOmega = omega * omega / (omega - I.DOmega) - omega;
     }
 
   }
-  params.push_back(SCE_parameters<real_type>(dim, SCE_parameters<real_type>::complex_type(epsilon,toOmega)));
+  params.push_back(SCE_parameters<real_type>(I.dim, SCE_parameters<real_type>::complex_type(I.epsilon,I.toOmega)));
+  params.back().as = I.as;
+  params.back().am = I.am;
+
 
 #if DEBUG >= STATUS
   cout << __FILE__ << " : I will work on " << params.size() << " parameter sets"<<endl;
   cout << __FILE__ << " : Preparing self consistency equation."<<endl;
 #endif
 
-  SCE<real_type> * F = new SCE<real_type>(bsbm, bmTarget, maxDb, minDb, Db);
+
+  // SCE(const realT& target_bsMAD_,const realT& target_bsADD_, const realT& target_bmMAD_, const realT& target_bmADD_,const realT& max_d_b,  const realT& min_d_b, const realT& ini_d_b, const approach_mode& app):
+   
+  SCE<real_type> * F = new SCE<real_type>(I.b,I.maxDb,I.minDb,I.initialDb, I.approach);
+
 
 #if DEBUG >= STATUS
   cout << __FILE__ << " : Starting solver..."<<endl;
 #endif
 
-  batchSolver<extraSolver<singleRootSolver<real_type >, real_type>, list<SCE_parameters<real_type> >::iterator>::run(NThreads, F, params.begin(), params.end(), outFilePrefix, string("#real(dBM)\timag(dBM)\t") + SCE_parameters<real_type>::getFormat() + string("\n"), precisionGoal, !onlySaveGoal);
+  batchSolver<extraSolver<singleRootSolver<real_type >, real_type>, list<SCE_parameters<real_type> >::iterator>::run(I.NThreads, F, params.begin(), params.end(), outFilePrefix, string("#real(dBM)\timag(dBM)\t") + SCE_parameters<real_type>::getFormat() + string("\n"), I.precisionGoal, !I.onlySaveGoal);
 
 
   cout << endl<< __FILE__ << " : SCE SOLVER FINISHED"<<endl<<endl;

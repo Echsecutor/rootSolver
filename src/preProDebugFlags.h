@@ -6,6 +6,7 @@
 #define WARN 3
 #define DETAIL 4
 #define SPAM 10
+#define CALCULATION 20
 #endif
 
 

@@ -1,7 +1,7 @@
 /**
  * @file derivativeVerification.cpp
  * @author Sebastian Schmittner <sebastian@schmittner.pw>
- * @version 1.0.2014-06-11
+ * @version 1.0.2014-09-15
  *
  *
  * @section DESCRIPTION
@@ -64,28 +64,14 @@ int main(int args, char *arg[]){
   normal_distribution<double> nd;
 
   real_type omega=1e-3;
-  real_type dim=2.0;
   real_type epsilon = 1e-9;
-  real_type bsbm = 1.0;
-
-  //  real_type bmTarget=0.14;
-  real_type bmTarget=1e-3;
-  real_type Db(1.0);
-  real_type maxDb(1.0);
-  real_type minDb(1.0);
 
 
   list <SCE_parameters<real_type> > params;
 
-  params.push_back(SCE_parameters<real_type>(dim,root_solver::complex<real_type>(epsilon, omega)));
+  SCE<real_type> F;
 
-  SCE<real_type> F (bsbm, bmTarget, maxDb, minDb, Db);
 
-  F.setParameters(params.begin());
-
-  F.set_extra_parameter(bmTarget);
-
-  //start somewhere
   real_type one(1.0);
   root_solver::complex<real_type> x1,direction,x2, f1, f2, DfDz, J, I(0.0,1.0);
   real_type dist;
@@ -117,64 +103,83 @@ int main(int args, char *arg[]){
   real_type err,maxErr=0.0;
   real_type maxFinalErr=0.0;
 
-  for(int i=0;i<5 && good;i++){
-    x1 = root_solver::complex<real_type>(nd(gen), nd(gen));
+  for(real_type dim = 1.0;dim<6.0 && good;dim++){
 
-    //for specific point:
-    //    x1=root_solver::complex<real_type>(28.1,-1.3);
+    params.push_front(SCE_parameters<real_type>(dim,root_solver::complex<real_type>(epsilon, omega)));
 
-    F.changePoint(x1);
-    f1 = F.calcF();
-    J = F.calcJ();
+    (*(params.begin())).as=abs(nd(gen));
+    (*(params.begin())).am=abs(nd(gen));
+    (*(params.begin())).b.mass.mix=abs(nd(gen));
+    (*(params.begin())).b.mass.add=abs(nd(gen));
+    (*(params.begin())).b.spring.mix=abs(nd(gen));
+    (*(params.begin())).b.spring.add=abs(nd(gen));
 
-    direction = root_solver::complex<real_type>(nd(gen),nd(gen));
-    direction /= root_solver::complex<real_type>(abs(direction));
-    cout << "checking point " << i +1 << ". z = " << x1 << " f = " << f1 << " dz ~ " << direction << " (|dz|="<<abs(direction)<<")"<<endl;
-    cout << "derivative = " << J<<endl;
-    dist = max(1e15 * numeric_limits<real_type>::epsilon(),1e-10);
-    //    dist = "1.0";
-    while( abs(dist) > max(1.0e5 * numeric_limits<real_type>::epsilon(),1e-20)){
-      x2 = x1 + direction * dist;
 
-      if(abs(abs((x2 - x1) / dist/direction) - one) > 1e-2){
-        cout << "\n\nprecision underflow at dist = " << dist << ", direction*dist = " << direction*dist << ", x2-x1 = " << x2-x1 <<endl;
-        cout << "abs(x2 - x1) = " << abs(x2 - x1) << ", rel err = ";
-        cout << abs(abs((x2 - x1) / dist/direction) - one)<<endl;
-        return 1;
+    F.setParameters(params.begin());
+
+    cout << "Checking in dimension " << dim << " parameters: " << *(params.begin()) << endl;
+    cout << "=\n" << F.getParameters() <<endl;
+
+
+    for(int i=0;i<10 && good;i++){
+      x1 = root_solver::complex<real_type>(nd(gen), nd(gen));
+
+      //for specific point:
+      //    x1=root_solver::complex<real_type>(28.1,-1.3);
+
+      F.changePoint(x1);
+      f1 = F.calcF();
+      J = F.calcJ();
+
+      direction = root_solver::complex<real_type>(nd(gen),nd(gen));
+      direction /= root_solver::complex<real_type>(abs(direction));
+      cout << "checking point " << i << ", z = " << x1 << " f = " << f1 << " dz ~ " << direction << " (|dz|="<<abs(direction)<<")"<<endl;
+      cout << "derivative = " << J<<endl;
+      dist = max(1e15 * numeric_limits<real_type>::epsilon(),1e-10);
+      //    dist = "1.0";
+      while( abs(dist) > max(1.0e5 * numeric_limits<real_type>::epsilon(),1e-20)){
+        x2 = x1 + direction * dist;
+
+        if(abs(abs((x2 - x1) / dist/direction) - one) > 1e-2){
+          cout << "\n\nprecision underflow at dist = " << dist << ", direction*dist = " << direction*dist << ", x2-x1 = " << x2-x1 <<endl;
+          cout << "abs(x2 - x1) = " << abs(x2 - x1) << ", rel err = ";
+          cout << abs(abs((x2 - x1) / dist/direction) - one)<<endl;
+          return 1;
+        }
+
+        F.changePoint(x2);
+        f2 = F.calcF();
+        //    DfDz=(f2 - f1)/(direction * dist);//much worse results...
+        DfDz=(f2 - f1) / (x2 - x1);
+        err=abs(DfDz - J);
+        cout << "|Dz| = " << dist << " => Df/Dz = " << (f2-f1) << " / " << (x2-x1) << " = " << DfDz << " \t(off by " <<err;
+
+        if(abs(J)!=0){
+          cout <<" = " << 100.0 * abs(DfDz - J)/abs(J) << " %)"<<endl;
+          err/=abs(J);
+        }else{
+          cout <<")"<<endl;
+        }
+        //      dist *= 1e-1;
+        dist*=1e-1;
+        if(err>maxErr){
+          maxErr=err;
+        }
+      }
+      if(err>maxFinalErr){
+        maxFinalErr=err;
       }
 
-      F.changePoint(x2);
-      f2 = F.calcF();
-      //    DfDz=(f2 - f1)/(direction * dist);//much worse results...
-      DfDz=(f2 - f1) / (x2 - x1);
-      err=abs(DfDz - J);
-      cout << "|Dz| = " << dist << " => Df/Dz = " << (f2-f1) << " / " << (x2-x1) << " = " << DfDz << " \t(off by " <<err;
 
-      if(abs(J)!=0){
-        cout <<" = " << 100.0 * abs(DfDz - J)/abs(J) << " %)"<<endl;
-        err/=abs(J);
+
+      if(err < 1e-2){
+        cout <<"\n\nseems legitimate."<<endl;
       }else{
-        cout <<")"<<endl;
+        cout << "does not look good... \n"<<endl;
+        good =false;
       }
-      //      dist *= 1e-1;
-      dist*=1e-1;
-      if(err>maxErr){
-        maxErr=err;
-      }
-    }
-    if(err>maxFinalErr){
-      maxFinalErr=err;
-    }
-
-
-
-    if(err < 1e-2){
-      cout <<"\n\nseems legitimate."<<endl;
-    }else{
-      cout << "does not look good... \n"<<endl;
-      good =false;
-    }
-  }
+    }//next point
+  }//next dim
 
   cout <<endl;
 

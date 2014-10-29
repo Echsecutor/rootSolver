@@ -20,8 +20,6 @@
 # 
 
 #export SHELL = /bin/sh
-.SUFFIXES:
-.SUFFIXES: .cpp .o .out
 
 #MAKEFLAGS+= -w -e
 
@@ -40,8 +38,8 @@ LOCALINCLUDES = -I$(ROOTDIR)/worksWith -I$(ROOTDIR)/worksWith/eigen3
 
 DEBUGFLAGS=-D DEBUG=11
 
-CFLAGS = -Wall -Werror -ansi -pedantic -std=c++0x -pthread $(LOCALINCLUDES)
-#-Wfatal-errors
+CFLAGS = -Wall -ansi -pedantic -std=c++0x -pthread $(LOCALINCLUDES)
+#-Wfatal-errors -Werror
 
 MPREALLIBS = -lgmpxx -lgmp -lmpfr
 
@@ -51,26 +49,35 @@ VPATH = $(SRCDIR):$(TESTDIR)
 
 #constructionSite: clean selfconsistencyEquations.out
 
+.SUFFIXES:
+.SUFFIXES: .cpp .o .out .dat
+
+.PHONY: clean all der folders
+
+.DELETE_ON_ERROR:
+
+
 all: folders testEigen.out testComplex.out testSRS.out testMRS.out testBatch.out testExtraData.out testExtraSolver.out testExtraBatchSolver.out derivativeVerification.out selfconsistencyEquations.out
 	@-mv *.dat $(TESTDIR) 2>/dev/null
 	@echo 
 	@echo "[OK]		All tests Passed! :D"
 	@echo 
 
+der: derivativeVerification.out
 
 ## production:
 
 SCE-approx: selfconsistencyEquations.cpp
-	$(CC) -DUSEEXACTINT=0 -DMULTITHREADED=1 -DDEBUG=3 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
+	$(CC) -DUSEEXACTINT=0 -DMULTITHREADED=0 -DDEBUG=3 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
 
 SCE: selfconsistencyEquations.cpp
-	$(CC) -DMULTITHREADED=1 -DDEBUG=3 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
+	$(CC) -DMULTITHREADED=0 -DDEBUG=3 -O3 $(CFLAGS) -o $(BINDIR)/$@ $^ $(LDFLAGS)
 
 
 
 ## testcases:
 
-folders:
+folders: $(BINDIR) $(TESTDIR)
 	@-mkdir $(BINDIR)
 	@-mkdir $(TESTDIR)
 
@@ -131,10 +138,12 @@ selfconsistencyEquations.out: $(BINDIR)/selfconsistencyEquations
 
 
 clean:
-	@-rm -f $(BINDIR)/* $(TESTDIR)/* *~ $(SRCDIR)/*~ *.o *.dat 2>/dev/null
+	@-rm -f $(BINDIR)/* $(TESTDIR)/* *~ $(SRCDIR)/*~ *.o *.dat nohup.out
 
 
 # actually not used for test cases
 %.o : %.cpp
 	$(CC) $(PREFLAGS) $(CFLAGS) $(DEBUGFLAGS) -c -o $@ $<
+
+
 

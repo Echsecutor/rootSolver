@@ -137,10 +137,10 @@ int main(int args, char *arg[]){
 
 
   polyParams<realT> para(dim,maxTotalDegree);
-  PSI<realT> it(para);
+  PSI<realT> it(&para);
   ++it;//randomise
   it.counter=0;//reset counter
-  PSI<realT> end(para);
+  PSI<realT> end(&para);
   end.counter=batchRuns;
   polynomials<dim,realT> *F = new polynomials<dim,realT>((*it));
 
@@ -153,13 +153,13 @@ int main(int args, char *arg[]){
 
   cout <<endl << "Starting Single Root Solver Batch Test."<<endl<<endl;
 
+  para.dim=1;
   para.maxDegree = maxTotalDegree;
-  PSI<realT> itOne(para);
-  ++itOne;//randomise
-  itOne.counter=0;//reset counter
-  PSI<realT> endOne(para);
+  para.randomiseTestcase();
+  PSI<realT> itOne(&para);
+  PSI<realT> endOne(&para);
   endOne.counter=batchRuns;
-  polynomial<realT> *FOne = new polynomial<realT>((*itOne));
+  polynomial<realT> *FOne = new polynomial<realT>(para);
 
   typedef batchSolver<singleRootSolver<realT>, PSI<realT> > batchSRS;
 
